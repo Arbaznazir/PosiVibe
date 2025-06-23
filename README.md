@@ -60,14 +60,6 @@ PosiVibe is a revolutionary social media platform that prioritizes mental health
 - **Rate Limiting** - API protection
 - **CORS** - Cross-origin resource sharing
 
-## 🎨 Design Preview
-
-![Design](assets/react_social_design.jpg)
-
-## 🎬 Demo
-
-![Demo](assets/Buckety_social_demo.gif)
-
 ## 🛠️ Installation & Setup
 
 ### Prerequisites
@@ -79,7 +71,7 @@ PosiVibe is a revolutionary social media platform that prioritizes mental health
 ### 1. Clone Repository
 
 ```bash
-git clone https://github.com/your-repo/posivibe.git
+git clone https://github.com/Arbaznazir/PosiVibe.git
 cd posivibe
 ```
 
@@ -185,9 +177,7 @@ posivibe/
 - **Mobile Responsive** - Optimized for all devices
 - **Dark Mode Support** - Eye-friendly theme options
 
-## 👥 Authors
-
-**Created by:**
+## 👥 Developers
 
 - **Arbaz Nazir** - Full Stack Developer
 - **Jamsheed Mushtaq** - Frontend Developer
