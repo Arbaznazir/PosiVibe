@@ -8,6 +8,9 @@ import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
 import MenuIcon from "@mui/icons-material/Menu";
 import PersonIcon from "@mui/icons-material/Person";
 import VerifiedIcon from "@mui/icons-material/Verified";
+import SettingsIcon from "@mui/icons-material/Settings";
+import LogoutIcon from "@mui/icons-material/Logout";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import Avatar from "../avatar/Avatar";
 
 import { Link } from "react-router-dom";
@@ -132,15 +135,17 @@ const TimeLimit = ({ currentUser }) => {
 
 const Navbar = ({ onMobileMenuToggle }) => {
   const { toggle, darkMode } = useContext(DarkModeContext);
-  const { currentUser } = useContext(AuthContext);
+  const { currentUser, logout } = useContext(AuthContext);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const searchRef = useRef(null);
   const notificationsRef = useRef(null);
+  const userMenuRef = useRef(null);
 
   // Fetch unread notification count
   const { data: unreadData } = useQuery({
@@ -206,7 +211,7 @@ const Navbar = ({ onMobileMenuToggle }) => {
     }
   };
 
-  // Close search results and notifications when clicking outside
+  // Close search results, notifications, and user menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (searchRef.current && !searchRef.current.contains(event.target)) {
@@ -214,6 +219,9 @@ const Navbar = ({ onMobileMenuToggle }) => {
       }
       if (notificationsRef.current && !notificationsRef.current.contains(event.target)) {
         setShowNotifications(false);
+      }
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
+        setShowUserMenu(false);
       }
     };
 
@@ -229,6 +237,16 @@ const Navbar = ({ onMobileMenuToggle }) => {
     setSearchResults([]);
     setShowResults(false);
     window.location.href = `/profile/${userId}`;
+  };
+
+  // Handle logout
+  const handleLogout = async () => {
+    try {
+      await logout();
+      setShowUserMenu(false);
+    } catch (err) {
+      console.error('Logout failed:', err);
+    }
   };
 
   return (
@@ -351,11 +369,11 @@ const Navbar = ({ onMobileMenuToggle }) => {
           {darkMode ? <WbSunnyOutlinedIcon /> : <DarkModeOutlinedIcon />}
         </button>
 
-        <div className="user-menu">
-          <Link 
-            to={`/profile/${currentUser?._id || currentUser?.id}`} 
+        <div className="user-menu" ref={userMenuRef}>
+          <button 
             className="user"
-            title="View Profile"
+            onClick={() => setShowUserMenu(!showUserMenu)}
+            title="User Menu"
           >
             <Avatar 
               src={currentUser?.profilePic} 
@@ -368,7 +386,29 @@ const Navbar = ({ onMobileMenuToggle }) => {
               <span className="username">{currentUser?.name}</span>
               <span className="status">Online</span>
             </div>
-          </Link>
+            <KeyboardArrowDownIcon className={`dropdown-arrow ${showUserMenu ? 'open' : ''}`} />
+          </button>
+          
+          {showUserMenu && (
+            <div className="user-dropdown">
+              <Link 
+                to={`/profile/${currentUser?._id || currentUser?.id}`}
+                className="dropdown-item"
+                onClick={() => setShowUserMenu(false)}
+              >
+                <PersonIcon className="icon" />
+                <span className="text">View Profile</span>
+              </Link>
+              <div className="divider"></div>
+              <button 
+                className="dropdown-item logout-item"
+                onClick={handleLogout}
+              >
+                <LogoutIcon className="icon" />
+                <span className="text">Logout</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

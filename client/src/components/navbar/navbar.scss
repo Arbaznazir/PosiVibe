@@ -550,6 +550,8 @@
     }
 
     .user-menu {
+      position: relative;
+      
       .user {
         display: flex;
         align-items: center;
@@ -561,6 +563,7 @@
         color: var(--text-color);
         transition: all 0.3s ease;
         border: 2px solid transparent;
+        cursor: pointer;
 
         @include mobile {
           gap: 8px;
@@ -642,6 +645,88 @@
             font-weight: 500;
             transition: all 0.3s ease;
           }
+        }
+
+        .dropdown-arrow {
+          font-size: 16px;
+          color: var(--text-color-secondary);
+          transition: all 0.3s ease;
+
+          @include mobile {
+            display: none;
+          }
+
+          &.open {
+            transform: rotate(180deg);
+          }
+        }
+      }
+
+      .user-dropdown {
+        position: absolute;
+        top: calc(100% + 8px);
+        right: 0;
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+        padding: 8px;
+        min-width: 200px;
+        z-index: 1001;
+        animation: slideDown 0.2s ease-out;
+
+        @include mobile {
+          right: -10px;
+          min-width: 180px;
+        }
+
+        .dropdown-item {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 12px 16px;
+          border-radius: 8px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          color: var(--text-color);
+          text-decoration: none;
+          background: none;
+          border: none;
+          width: 100%;
+          font-size: 14px;
+
+          &:hover {
+            background: var(--bg-soft);
+            transform: translateX(4px);
+          }
+
+          &.logout-item {
+            color: var(--danger-color);
+
+            &:hover {
+              background: rgba(239, 68, 68, 0.1);
+              color: var(--danger-color);
+            }
+
+            .icon {
+              color: var(--danger-color);
+            }
+          }
+
+          .icon {
+            font-size: 18px;
+            color: var(--text-color-secondary);
+          }
+
+          .text {
+            font-weight: 500;
+          }
+        }
+
+        .divider {
+          height: 1px;
+          background: var(--border-color);
+          margin: 8px 0;
         }
       }
     }

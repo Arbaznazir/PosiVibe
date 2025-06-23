@@ -11,6 +11,8 @@ import {
   Verified as VerifiedIcon
 } from "@mui/icons-material";
 import toast from 'react-hot-toast';
+import moment from "moment";
+import Avatar from "../avatar/Avatar";
 
 const Comments = ({ postId }) => {
   const [desc, setDesc] = useState("");
@@ -128,63 +130,34 @@ const Comments = ({ postId }) => {
   return (
     <div className="comments">
       <div className="write">
-        <div className="avatar">
-          {currentUser?.profilePic ? (
-            <img src={"/upload/" + currentUser.profilePic} alt="Profile" />
-          ) : (
-            <div style={{
-              width: '40px', 
-              height: '40px', 
-              borderRadius: '50%', 
-              background: 'var(--primary-gradient)', 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center', 
-              fontSize: '16px',
-              color: 'white',
-              fontWeight: '600'
-            }}>
-              {currentUser?.name?.charAt(0)?.toUpperCase() || '👤'}
-            </div>
-          )}
-          <div className="status-dot"></div>
-        </div>
+        <Avatar 
+          src={currentUser?.profilePic} 
+          name={currentUser?.name} 
+          size="medium" 
+          className="avatar"
+          showOnline={true}
+        />
 
         <div className="input-section">
           <div className="input-wrapper">
-        <input
-          type="text"
-              placeholder="Write a thoughtful comment..."
-          value={desc}
-              onChange={handleInputChange}
-              onKeyPress={(e) => e.key === 'Enter' && handleClick(e)}
+            <input
+              type="text"
+              placeholder="Write a comment..."
+              value={desc}
+              onChange={(e) => setDesc(e.target.value)}
+              onKeyPress={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleClick();
+                }
+              }}
             />
-            <div className="char-count">
-              {charCount}/{maxChars}
-            </div>
-          </div>
-
-          <div className="actions">
-            <div className="emoji-picker">
-              {['😊', '👍', '❤️', '😂', '😮', '😢'].map((emoji, index) => (
-                <div 
-                  key={index}
-                  className="emoji" 
-                  onClick={() => handleEmojiClick(emoji)}
-                  title={`Add ${emoji}`}
-                >
-                  {emoji}
-                </div>
-              ))}
-            </div>
-
             <button 
-              className="submit-btn"
-              onClick={handleClick}
+              onClick={handleClick} 
               disabled={!desc.trim() || mutation.isLoading}
+              className="send-btn"
             >
-              <SendIcon style={{ fontSize: '14px' }} />
-              {mutation.isLoading ? 'Posting...' : 'Post'}
+              <SendIcon />
             </button>
           </div>
         </div>
@@ -226,45 +199,24 @@ const Comments = ({ postId }) => {
         ) : (
           data?.map((comment) => (
             <div className="comment" key={comment.id}>
-              <div className="avatar">
-                {comment.profilePic ? (
-                  <img src={"/upload/" + comment.profilePic} alt="Profile" />
-                ) : (
-                  <div style={{
-                    width: '36px', 
-                    height: '36px', 
-                    borderRadius: '50%', 
-                    background: 'var(--secondary-gradient)', 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'center', 
-                    fontSize: '14px',
-                    color: 'white',
-                    fontWeight: '600'
-                  }}>
-                    {comment.name?.charAt(0)?.toUpperCase() || '👤'}
-                  </div>
-                )}
-              </div>
-
-              <div className="content">
-                <div className="header">
-                  <span className="name">{comment.name || 'Anonymous'}</span>
-                  <span className="timestamp">{formatTimeAgo(comment.createdAt)}</span>
-                  {comment.verified && (
-                    <VerifiedIcon className="verified" />
-                  )}
+              <Avatar 
+                src={comment.profilePic} 
+                name={comment.name} 
+                size="medium" 
+                className="avatar"
+              />
+              <div className="info">
+                <div className="comment-header">
+                  <span className="name">{comment.name}</span>
+                  <span className="date">{moment(comment.createdAt).fromNow()}</span>
                 </div>
-
-                <div className="text">{comment.desc}</div>
-
-                <div className="actions">
-                  <button className="action-btn">
+                <p className="comment-text">{comment.desc}</p>
+                <div className="comment-actions">
+                  <button className="like-btn">
                     <FavoriteBorderIcon className="icon" />
                     <span>Like</span>
                   </button>
-                  <button className="action-btn">
-                    <ReplyIcon className="icon" />
+                  <button className="reply-btn">
                     <span>Reply</span>
                   </button>
                 </div>

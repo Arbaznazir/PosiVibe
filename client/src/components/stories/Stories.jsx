@@ -11,6 +11,7 @@ import VideocamIcon from "@mui/icons-material/Videocam";
 import DeleteIcon from "@mui/icons-material/Delete";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import toast from "react-hot-toast";
+import Avatar from "../avatar/Avatar";
 
 const Stories = () => {
   const { currentUser } = useContext(AuthContext);
@@ -302,17 +303,12 @@ const Stories = () => {
             
             <div className="story-overlay">
               <div className="story-header">
-                {userStories.profilePic ? (
-                  <img 
-                    src={"/upload/" + userStories.profilePic} 
-                    alt="User Avatar" 
-                    className="user-avatar"
-                  />
-                ) : (
-                  <div className="user-avatar letter-avatar">
-                    {userStories.name?.charAt(0)?.toUpperCase() || '👤'}
-                  </div>
-                )}
+                <Avatar 
+                  src={userStories.profilePic} 
+                  name={userStories.name} 
+                  size="medium" 
+                  className="user-avatar"
+                />
                 <div className={`story-status ${userStories.hasUnseenStories ? 'unseen' : 'seen'}`}></div>
               </div>
 
@@ -475,16 +471,12 @@ const Stories = () => {
             </div>
 
             <div className="story-header">
-              {currentStoryUser.profilePic ? (
-                <img 
-                  src={"/upload/" + currentStoryUser.profilePic} 
-                  alt="User Avatar" 
-                />
-              ) : (
-                <div className="user-avatar letter-avatar">
-                  {currentStoryUser.name?.charAt(0)?.toUpperCase() || '👤'}
-                </div>
-              )}
+              <Avatar 
+                src={currentStoryUser.profilePic} 
+                name={currentStoryUser.name} 
+                size="medium" 
+                className="user-avatar"
+              />
               <div className="user-info">
                 <span className="user-name">{currentStoryUser.name}</span>
                 <span className="story-time">

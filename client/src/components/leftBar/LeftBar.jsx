@@ -11,6 +11,7 @@ import Messages from "../../assets/10.png";
 import { AuthContext } from "../../context/authContext";
 import { useContext, useEffect } from "react";
 import { Link } from "react-router-dom";
+import Avatar from "../avatar/Avatar";
 
 const LeftBar = ({ isOpen, onClose }) => {
   const { currentUser } = useContext(AuthContext);
@@ -58,16 +59,13 @@ const LeftBar = ({ isOpen, onClose }) => {
             className="user-section"
             onClick={() => onClose && onClose()}
           >
-            <div className="user-avatar">
-              {currentUser?.profilePic ? (
-                <img src={`/upload/${currentUser.profilePic}`} alt="Profile" />
-              ) : (
-                <div className="avatar-placeholder">
-                  {currentUser?.name?.charAt(0)?.toUpperCase() || '👤'}
-                </div>
-              )}
-              <div className="online-status"></div>
-            </div>
+            <Avatar 
+              src={currentUser?.profilePic} 
+              name={currentUser?.name} 
+              size="large" 
+              className="user-avatar"
+              showOnline={true}
+            />
             <div className="user-info">
               <h3 className="user-name">{currentUser?.name || 'User'}</h3>
               <p className="user-handle">@{currentUser?.username || 'username'}</p>
@@ -113,34 +111,39 @@ const LeftBar = ({ isOpen, onClose }) => {
           </div>
 
           {/* Your Activity Stats */}
-          <div className="stats-section">
+          <div className="activity-stats">
             <h4 className="stats-title">Your Activity</h4>
             <div className="stats-grid">
               <div className="stat-item">
-                <span className="stat-number">8</span>
-                <span className="stat-label">Posts</span>
-          </div>
+                <div className="stat-number">12</div>
+                <div className="stat-label">Posts</div>
+              </div>
               <div className="stat-item">
-                <span className="stat-number">2</span>
-                <span className="stat-label">Following</span>
-          </div>
+                <div className="stat-number">48</div>
+                <div className="stat-label">Friends</div>
+              </div>
               <div className="stat-item">
-                <span className="stat-number">1</span>
-                <span className="stat-label">Followers</span>
-          </div>
-              <div className="stat-item">
-                <span className="stat-number">24</span>
-                <span className="stat-label">Likes</span>
-          </div>
-        </div>
+                <div className="stat-number">156</div>
+                <div className="stat-label">Likes</div>
+              </div>
+            </div>
           </div>
 
-          {/* Settings */}
-          <div className="settings-section">
-            <div className="settings-item" onClick={() => onClose && onClose()}>
-              <img src={Gallery} alt="" className="settings-icon" />
-              <span className="settings-text">Settings</span>
-          </div>
+          {/* Trending Topics */}
+          <div className="trending">
+            <h4 className="trending-title">Trending</h4>
+            <div className="trending-item">
+              <span className="trending-topic">#PositiveVibes</span>
+              <span className="trending-count">2.4k posts</span>
+            </div>
+            <div className="trending-item">
+              <span className="trending-topic">#DigitalWellness</span>
+              <span className="trending-count">1.8k posts</span>
+            </div>
+            <div className="trending-item">
+              <span className="trending-topic">#MindfulSocial</span>
+              <span className="trending-count">892 posts</span>
+            </div>
           </div>
         </div>
       </div>

@@ -1,11 +1,13 @@
 import "./share.scss";
-
+import Image from "../../assets/img.png";
+import Map from "../../assets/map.png";
+import Friend from "../../assets/friend.png";
 import { useContext, useState } from "react";
 import { AuthContext } from "../../context/authContext";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { makeRequest } from "../../axios";
-import { PhotoLibrary, LocationOn, PersonAdd, Send } from "@mui/icons-material";
 import toast from 'react-hot-toast';
+import Avatar from "../avatar/Avatar";
 
 const Share = () => {
   const [file, setFile] = useState(null);
@@ -168,16 +170,13 @@ const Share = () => {
     <div className="share">
       <div className="container">
         <div className="top">
-          <div className="avatar">
-            {currentUser?.profilePic ? (
-              <img src={currentUser.profilePic.startsWith('http') ? currentUser.profilePic : "/upload/" + currentUser.profilePic} alt="Profile" />
-            ) : (
-              <div className="avatar-placeholder">
-                {currentUser?.name?.charAt(0)?.toUpperCase() || '👤'}
-              </div>
-            )}
-            <div className="status-dot"></div>
-          </div>
+          <Avatar 
+            src={currentUser?.profilePic} 
+            name={currentUser?.name} 
+            size="large" 
+            className="avatar"
+            showOnline={true}
+          />
 
           <div className="input-section">
             <div className="input-wrapper">
@@ -202,48 +201,37 @@ const Share = () => {
           </div>
         </div>
 
+        <hr />
+
         <div className="bottom">
           <div className="left">
-            <label htmlFor="file" className="item photo">
             <input
               type="file"
               id="file"
-                accept="image/*"
               style={{ display: "none" }}
-                onChange={handleFileChange}
+              accept="image/*,video/*"
+              onChange={handleFileChange}
             />
-              <PhotoLibrary />
-              <span>Photo</span>
+            <label htmlFor="file" className="item">
+              <img src={Image} alt="" />
+              <span>Add Image</span>
             </label>
-            
-            <div className="item location">
-              <LocationOn />
-              <span>Location</span>
+            <div className="item">
+              <img src={Map} alt="" />
+              <span>Add Place</span>
             </div>
-            
-            <div className="item tag">
-              <PersonAdd />
-              <span>Tag People</span>
+            <div className="item">
+              <img src={Friend} alt="" />
+              <span>Tag Friends</span>
             </div>
           </div>
-
           <div className="right">
             <button 
-              className="share-btn"
               onClick={handleClick}
-              disabled={((!desc.trim() && !file) || mutation.isLoading)}
+              disabled={!desc.trim() || mutation.isLoading}
+              className="share-btn"
             >
-              {mutation.isLoading ? (
-                <>
-                  <div className="loading"></div>
-                  Posting...
-                </>
-              ) : (
-                <>
-                  <Send style={{ fontSize: '16px' }} />
-                  Share
-                </>
-              )}
+              {mutation.isLoading ? "Sharing..." : "Share"}
             </button>
           </div>
         </div>
