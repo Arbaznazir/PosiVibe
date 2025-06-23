@@ -3,6 +3,7 @@ import {
   getUser,
   updateUser,
   searchUsers,
+  getSuggestions,
   getTimeLimit,
   simulateTimeUsage,
 } from "../controllers/user.js";
@@ -12,6 +13,7 @@ const router = express.Router();
 
 router.get("/find/:userId", getUser);
 router.get("/search", searchUsers);
+router.get("/suggestions", getSuggestions);
 router.get("/time-limit", getTimeLimit);
 router.post("/simulate-time", simulateTimeUsage);
 

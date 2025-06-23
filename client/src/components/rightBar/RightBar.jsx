@@ -9,39 +9,22 @@ import {
   PersonAddAlt1,
   Verified
 } from "@mui/icons-material";
-import { useContext, useEffect, useState } from "react";
+import { useContext } from "react";
 import { AuthContext } from "../../context/authContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { makeRequest } from "../../axios";
+import Avatar from "../avatar/Avatar";
+import toast from 'react-hot-toast';
 
 const RightBar = () => {
   const { currentUser } = useContext(AuthContext);
   const queryClient = useQueryClient();
-  const [suggestions, setSuggestions] = useState([]);
 
-  // Fetch all users to show as suggestions
-  const { data: allUsers } = useQuery({
-    queryKey: ["users"],
-    queryFn: async () => {
-      // Since we don't have a get all users endpoint, we'll manually create suggestions
-      // from the users we know exist in the system
-      const knownUsers = [
-        { _id: "1", name: "Test User", username: "testuser", profilePic: null },
-        { _id: "3", name: "John Doe", username: "johndoe", profilePic: null },
-        { _id: "4", name: "Sarah Smith", username: "sarahsmith", profilePic: null },
-        { _id: "5", name: "Mike Johnson", username: "mikejohnson", profilePic: null },
-        { _id: "6", name: "Emily Davis", username: "emilydavis", profilePic: null },
-      ];
-      // Filter out current user
-      return knownUsers.filter(user => user._id !== currentUser?.id);
-    },
-  });
-
-  // Fetch relationships to know who we're already following
-  const { data: relationships } = useQuery({
-    queryKey: ["following", currentUser?.id],
-    queryFn: () => makeRequest.get("/relationships/following").then((res) => res.data),
-    enabled: !!currentUser?.id,
+  // Fetch user suggestions from API
+  const { data: suggestions = [], isLoading: suggestionsLoading } = useQuery({
+    queryKey: ["suggestions"],
+    queryFn: () => makeRequest.get("/users/suggestions").then((res) => res.data),
+    enabled: !!currentUser,
   });
 
   // Follow mutation
@@ -50,37 +33,16 @@ const RightBar = () => {
       return makeRequest.post("/relationships", { userId });
     },
     onSuccess: () => {
+      queryClient.invalidateQueries(["suggestions"]);
       queryClient.invalidateQueries(["following"]);
       queryClient.invalidateQueries(["posts"]);
+      toast.success("User followed successfully!");
+    },
+    onError: (error) => {
+      console.error("Follow error:", error);
+      toast.error("Failed to follow user");
     },
   });
-
-  // Unfollow mutation
-  const unfollowMutation = useMutation({
-    mutationFn: (userId) => {
-      return makeRequest.delete(`/relationships?userId=${userId}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries(["following"]);
-      queryClient.invalidateQueries(["posts"]);
-    },
-  });
-
-  // Update suggestions based on users and relationships
-  useEffect(() => {
-    if (allUsers && relationships) {
-      const suggestedUsers = allUsers.map(user => ({
-        id: user._id,
-        name: user.name,
-        username: `@${user.username}`,
-        profilePic: user.profilePic,
-        mutualFriends: Math.floor(Math.random() * 15) + 1, // Random for demo
-        isVerified: false,
-        isFollowing: relationships.includes(user._id)
-      }));
-      setSuggestions(suggestedUsers);
-    }
-  }, [allUsers, relationships]);
 
   // Mock data for activities
   const activities = [
@@ -136,16 +98,8 @@ const RightBar = () => {
     }
   ];
 
-  const handleFollow = (userId, isFollowing) => {
-    if (isFollowing) {
-      unfollowMutation.mutate(userId);
-    } else {
-      followMutation.mutate(userId);
-    }
-  };
-
-  const handleDismiss = (userId) => {
-    setSuggestions(prev => prev.filter(user => user.id !== userId));
+  const handleFollow = (userId) => {
+    followMutation.mutate(userId);
   };
 
   const getActivityIcon = (type) => {
@@ -177,49 +131,63 @@ const RightBar = () => {
           </div>
           
           <div className="content">
-            {suggestions.map((user) => (
-              <div key={user.id} className="suggestion-item">
-                <div className="user-info">
-                  <div className="avatar">
-                    {user.profilePic ? (
-                      <img src={`/upload/${user.profilePic}`} alt={user.name} />
-                    ) : (
-                      <div className="avatar-placeholder">
-                        {user.name.charAt(0).toUpperCase()}
+            {suggestionsLoading ? (
+              <div className="suggestion-item">
+                <div className="loading">Loading suggestions...</div>
+              </div>
+            ) : suggestions.length > 0 ? (
+              suggestions.map((user) => (
+                <div key={user._id} className="suggestion-item">
+                  <div className="user-info">
+                    <Avatar 
+                      src={user.profilePic} 
+                      name={user.name} 
+                      size="medium" 
+                      className="avatar"
+                      showOnline={false}
+                    />
+                    
+                    <div className="details">
+                      <div className="name">
+                        {user.name}
+                        {user.isVerified && <Verified className="verified" />}
                       </div>
-                    )}
-                    <div className="status-indicator"></div>
+                      <div className="subtitle">
+                        <span className="mutual-count">{user.mutualFriends}</span> mutual friends
+                      </div>
+                    </div>
                   </div>
                   
-                  <div className="details">
-                    <div className="name">
-                      {user.name}
-                      {user.isVerified && <Verified className="verified" />}
-                    </div>
-                    <div className="subtitle">
-                      <span className="mutual-count">{user.mutualFriends}</span> mutual friends
-                    </div>
+                  <div className="actions">
+                    <button 
+                      className="follow-btn"
+                      onClick={() => handleFollow(user._id)}
+                      disabled={followMutation.isPending}
+                    >
+                      <PersonAdd className="icon" />
+                      {followMutation.isPending ? 'Following...' : 'Follow'}
+                    </button>
+                    <button 
+                      className="dismiss-btn"
+                      onClick={() => {
+                        // Remove from local state
+                        queryClient.setQueryData(["suggestions"], (old) =>
+                          old?.filter((u) => u._id !== user._id) || []
+                        );
+                      }}
+                    >
+                      Dismiss
+                    </button>
                   </div>
                 </div>
-                
-                <div className="actions">
-                  <button 
-                    className={`follow-btn ${user.isFollowing ? 'following' : ''}`}
-                    onClick={() => handleFollow(user.id, user.isFollowing)}
-                    disabled={followMutation.isPending || unfollowMutation.isPending}
-                  >
-                    <PersonAdd className="icon" />
-                    {user.isFollowing ? 'Following' : 'Follow'}
-                  </button>
-                  <button 
-                    className="dismiss-btn"
-                    onClick={() => handleDismiss(user.id)}
-                  >
-                    Dismiss
-                  </button>
+              ))
+            ) : (
+              <div className="suggestion-item">
+                <div className="empty-state">
+                  <p>No suggestions available</p>
                 </div>
               </div>
-            ))}
+            )}
           </div>
         </div>
 
@@ -266,16 +234,13 @@ const RightBar = () => {
             {onlineFriends.map((friend) => (
               <div key={friend.id} className="friend-item">
                 <div className="user-info">
-                  <div className="avatar">
-                    {friend.profilePic ? (
-                      <img src={friend.profilePic} alt={friend.name} />
-                    ) : (
-                      <div className="avatar-placeholder">
-                        {friend.name.charAt(0).toUpperCase()}
-                      </div>
-                    )}
-                    <div className="status-indicator"></div>
-                  </div>
+                  <Avatar 
+                    src={friend.profilePic} 
+                    name={friend.name} 
+                    size="medium" 
+                    className="avatar"
+                    showOnline={true}
+                  />
                   
                   <div className="details">
                     <div className="name">{friend.name}</div>

@@ -396,3 +396,77 @@ export const simulateTimeUsage = async (req, res) => {
     }
   );
 };
+
+export const getSuggestions = async (req, res) => {
+  const token = req.cookies.accessToken;
+  if (!token) return res.status(401).json("Not authenticated!");
+
+  jwt.verify(
+    token,
+    process.env.JWT_SECRET || "secretkey",
+    async (err, userInfo) => {
+      if (err) return res.status(403).json("Token is not valid!");
+
+      try {
+        const currentUserId = userInfo.id;
+
+        // Get users that current user is already following
+        const followingRelationships = await Relationship.find({
+          followerUserId: currentUserId,
+        });
+
+        const followingIds = followingRelationships.map((rel) =>
+          rel.followedUserId.toString()
+        );
+
+        // Get users that are not the current user and not already followed
+        const suggestedUsers = await User.find({
+          _id: {
+            $ne: currentUserId,
+            $nin: followingIds,
+          },
+        })
+          .select("-password")
+          .limit(10);
+
+        // For each suggested user, get mutual friends count
+        const suggestionsWithMutualFriends = await Promise.all(
+          suggestedUsers.map(async (user) => {
+            // Get followers of the suggested user
+            const userFollowers = await Relationship.find({
+              followedUserId: user._id,
+            });
+
+            const userFollowerIds = userFollowers.map((rel) =>
+              rel.followerUserId.toString()
+            );
+
+            // Count mutual friends (people who follow both current user and suggested user)
+            const mutualFriendsCount = userFollowerIds.filter((id) =>
+              followingIds.includes(id)
+            ).length;
+
+            return {
+              _id: user._id,
+              name: user.name,
+              username: user.username,
+              profilePic: user.profilePic,
+              mutualFriends: mutualFriendsCount,
+              isFollowing: false, // Since we filtered out already followed users
+            };
+          })
+        );
+
+        // Sort by mutual friends count (descending)
+        const sortedSuggestions = suggestionsWithMutualFriends.sort(
+          (a, b) => b.mutualFriends - a.mutualFriends
+        );
+
+        return res.json(sortedSuggestions);
+      } catch (err) {
+        console.error("Get suggestions error:", err);
+        return res.status(500).json("Failed to get suggestions");
+      }
+    }
+  );
+};
