@@ -1,0 +1,166 @@
+import Login from "./pages/login/Login";
+import Register from "./pages/register/Register";
+import TimeLimitPage from "./pages/timeLimit/TimeLimit";
+import {
+  createBrowserRouter,
+  RouterProvider,
+  Outlet,
+  Navigate,
+  useParams,
+} from "react-router-dom";
+import Navbar from "./components/navbar/Navbar";
+import LeftBar from "./components/leftBar/LeftBar";
+import RightBar from "./components/rightBar/RightBar";
+import Home from "./pages/home/Home";
+import Profile from "./pages/profile/Profile";
+import "./style.scss";
+import { useContext, useState } from "react";
+import { DarkModeContext } from "./context/darkModeContext";
+import { AuthContext } from "./context/authContext";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Toaster } from "react-hot-toast";
+
+function App() {
+  const { currentUser } = useContext(AuthContext);
+  const { darkMode } = useContext(DarkModeContext);
+  const queryClient = new QueryClient();
+
+  const ProfileRedirect = () => {
+    const { id } = useParams();
+    return <Navigate to={`/app/profile/${id}`} replace />;
+  };
+
+  const Layout = () => {
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+    const toggleMobileMenu = () => {
+      setIsMobileMenuOpen(!isMobileMenuOpen);
+    };
+
+    const closeMobileMenu = () => {
+      setIsMobileMenuOpen(false);
+    };
+
+    return (
+      <QueryClientProvider client={queryClient}>
+        <div className={`theme-${darkMode ? "dark" : "light"} app-layout`}>
+          <Navbar onMobileMenuToggle={toggleMobileMenu} />
+          <div className="main-container">
+            <aside className="sidebar-left">
+              <LeftBar isOpen={isMobileMenuOpen} onClose={closeMobileMenu} />
+            </aside>
+            <main className="content-area">
+              <Outlet />
+            </main>
+            <aside className="sidebar-right">
+              <RightBar />
+            </aside>
+          </div>
+          <Toaster
+            position="top-right"
+            toastOptions={{
+              duration: 4000,
+              style: {
+                background: darkMode ? "#333" : "#fff",
+                color: darkMode ? "#fff" : "#333",
+              },
+              success: {
+                iconTheme: {
+                  primary: "#4ade80",
+                  secondary: "white",
+                },
+              },
+              error: {
+                iconTheme: {
+                  primary: "#ef4444",
+                  secondary: "white",
+                },
+              },
+            }}
+          />
+        </div>
+      </QueryClientProvider>
+    );
+  };
+
+  const ProtectedRoute = ({ children }) => {
+    if (!currentUser) {
+      return <Navigate to="/login" />;
+    }
+
+    return children;
+  };
+
+  const LoggedInRoute = ({ children }) => {
+    if (currentUser) {
+      return <Navigate to="/app" />;
+    }
+
+    return children;
+  };
+
+  const router = createBrowserRouter([
+    {
+      path: "/",
+      element: (
+        <LoggedInRoute>
+          <Login />
+        </LoggedInRoute>
+      ),
+    },
+    {
+      path: "/profile/:id",
+      element: (
+        <ProtectedRoute>
+          <ProfileRedirect />
+        </ProtectedRoute>
+      ),
+    },
+    {
+      path: "/app",
+      element: (
+        <ProtectedRoute>
+          <Layout />
+        </ProtectedRoute>
+      ),
+      children: [
+        {
+          path: "/app",
+          element: <Home />,
+        },
+        {
+          path: "/app/profile/:id",
+          element: <Profile />,
+        },
+      ],
+    },
+    {
+      path: "/time-limit",
+      element: <TimeLimitPage />,
+    },
+    {
+      path: "/login",
+      element: (
+        <LoggedInRoute>
+          <Login />
+        </LoggedInRoute>
+      ),
+    },
+    {
+      path: "/register",
+      element: (
+        <LoggedInRoute>
+          <Register />
+        </LoggedInRoute>
+      ),
+    },
+  ]);
+
+  return (
+    <div>
+      <RouterProvider router={router} />
+    </div>
+  );
+}
+
+export default App;

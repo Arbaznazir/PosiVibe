@@ -1,0 +1,12 @@
+@import "../../style.scss";
+
+.home {
+  @include themify($themes) {
+    min-height: calc(100vh - 100px);
+    width: 100%;
+    
+    @include mobile {
+      padding-top: 16px;
+    }
+  }
+}
