@@ -197,6 +197,10 @@ body {
     margin-top: 60px; // Height of navbar
     height: calc(100vh - 60px); // Subtract navbar height
     overflow: hidden; // Prevent double scrollbars
+    max-width: 1600px;
+    margin-left: auto;
+    margin-right: auto;
+    width: 100%;
 
     @include mobile {
       grid-template-columns: 1fr;
@@ -207,9 +211,15 @@ body {
 
     @include tablet {
       grid-template-columns: 200px 1fr;
+      gap: 15px;
       .sidebar-right {
         display: none;
       }
+    }
+
+    @include desktop {
+      grid-template-columns: 320px 1fr 380px;
+      gap: 30px;
     }
 
     .sidebar-left {

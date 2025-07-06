@@ -74,26 +74,37 @@ export const fileToBase64 = (file) => {
 export const getCroppedImage = (cropper, type = "profile") => {
   return new Promise((resolve, reject) => {
     try {
+      if (!cropper) {
+        reject(new Error("Cropper instance is not available"));
+        return;
+      }
+
       const config = IMAGE_TYPES[type.toUpperCase()] || IMAGE_TYPES.PROFILE;
 
-      cropper
-        .getCroppedCanvas({
-          width: config.width,
-          height: config.height,
-          imageSmoothingEnabled: true,
-          imageSmoothingQuality: "high",
-        })
-        .toBlob(
-          (blob) => {
-            if (!blob) {
-              reject(new Error("Failed to create image blob"));
-              return;
-            }
-            resolve(blob);
-          },
-          "image/jpeg",
-          config.quality / 100
-        );
+      const canvas = cropper.getCroppedCanvas({
+        width: config.width,
+        height: config.height,
+        imageSmoothingEnabled: true,
+        imageSmoothingQuality: "high",
+        fillColor: "#ffffff", // Ensure white background
+      });
+
+      if (!canvas) {
+        reject(new Error("Failed to get cropped canvas"));
+        return;
+      }
+
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            reject(new Error("Failed to create image blob"));
+            return;
+          }
+          resolve(blob);
+        },
+        "image/jpeg",
+        config.quality / 100
+      );
     } catch (error) {
       reject(error);
     }

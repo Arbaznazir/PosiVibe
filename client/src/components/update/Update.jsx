@@ -73,42 +73,55 @@ const Update = ({ setOpenUpdate, user }) => {
     if (!file) return;
 
     try {
+      console.log('Image selected:', file.name, 'Type:', type);
       validateImage(file);
       const url = URL.createObjectURL(file);
+      console.log('Image URL created:', url);
       
       if (type === "PROFILE") {
         setProfile(file);
         setProfileUrl(url);
+        console.log('Profile image set');
       } else {
         setCover(file);
         setCoverUrl(url);
+        console.log('Cover image set');
       }
       
       setCropType(type);
       setShowCropper(true);
       setError(null);
+      console.log('Showing cropper for type:', type);
     } catch (err) {
+      console.error('Image selection error:', err);
       setError(err.message);
     }
   };
 
   const handleCropComplete = async (croppedImage) => {
     try {
+      console.log('Crop complete received:', croppedImage);
+      
       if (cropType === "PROFILE") {
         setProfile(croppedImage);
-        setProfileUrl(URL.createObjectURL(croppedImage));
+        const url = URL.createObjectURL(croppedImage);
+        setProfileUrl(url);
+        console.log('Profile image updated:', url);
       } else {
         setCover(croppedImage);
-        setCoverUrl(URL.createObjectURL(croppedImage));
+        const url = URL.createObjectURL(croppedImage);
+        setCoverUrl(url);
+        console.log('Cover image updated:', url);
       }
       setShowCropper(false);
     } catch (err) {
       setError("Error processing image");
-      console.error(err);
+      console.error('Error in handleCropComplete:', err);
     }
   };
 
   const handleCropCancel = () => {
+    console.log('Crop cancelled');
     setShowCropper(false);
     if (cropType === "PROFILE") {
       setProfile(null);
@@ -117,6 +130,7 @@ const Update = ({ setOpenUpdate, user }) => {
       setCover(null);
       setCoverUrl(null);
     }
+    setCropType(null);
   };
 
   const handleSubmit = async (e) => {
@@ -184,6 +198,14 @@ const Update = ({ setOpenUpdate, user }) => {
             onCropComplete={handleCropComplete}
             onCancel={handleCropCancel}
           />
+        ) : showCropper ? (
+          <div style={{padding: '20px', textAlign: 'center'}}>
+            <p>Loading cropper...</p>
+            <p>Show Cropper: {showCropper.toString()}</p>
+            <p>Crop Type: {cropType}</p>
+            <p>Profile URL: {profileUrl ? 'Yes' : 'No'}</p>
+            <p>Cover URL: {coverUrl ? 'Yes' : 'No'}</p>
+          </div>
         ) : (
           <form onSubmit={handleSubmit}>
             <div className="section-title">Profile Images</div>

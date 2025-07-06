@@ -7,13 +7,17 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: 9999;
   backdrop-filter: blur(4px);
+  
+  * {
+    box-sizing: border-box;
+  }
 
   .cropper-container {
-    background-color: var(--bg-main);
+    background-color: var(--bg-card, #ffffff);
     border-radius: 12px;
-    box-shadow: var(--shadow-lg);
+    box-shadow: var(--shadow-lg, 0 10px 25px rgba(0, 0, 0, 0.15));
     width: 90%;
     max-width: 600px;
     max-height: 90vh;
@@ -27,19 +31,19 @@
       align-items: center;
       justify-content: space-between;
       padding: 16px 20px;
-      border-bottom: 1px solid var(--border-color);
+      border-bottom: 1px solid var(--border-color, #ddd);
 
       h3 {
         font-size: 1.25rem;
         font-weight: 600;
-        color: var(--text-color);
+        color: var(--text-color, #333);
         margin: 0;
       }
 
       .close-button {
         background: none;
         border: none;
-        color: var(--text-color-soft);
+        color: var(--text-color-secondary, #666);
         cursor: pointer;
         padding: 8px;
         border-radius: 50%;
@@ -49,13 +53,14 @@
         transition: all 0.2s ease;
 
         &:hover {
-          background-color: var(--bg-soft);
-          color: var(--text-color);
+          background-color: var(--bg-soft, #f5f5f5);
+          color: var(--text-color, #333);
         }
 
         &:disabled {
           opacity: 0.5;
           cursor: not-allowed;
+          pointer-events: none;
         }
 
         svg {
@@ -66,15 +71,78 @@
 
     .cropper-content {
       padding: 20px;
-      background-color: var(--bg-soft);
+      background-color: var(--bg-soft, #f5f5f5);
       flex: 1;
       min-height: 0;
       position: relative;
+      
+      .cropper-wrapper {
+        position: relative;
+        width: 100%;
+        height: 400px;
+        isolation: isolate;
+        
+        // Isolate cropper from button area
+        .cropper-container {
+          position: relative !important;
+          width: 100% !important;
+          height: 100% !important;
+        }
+      }
+      
+      // Fix cropper opacity and visibility issues
+      .cropper-container {
+        background: transparent !important;
+      }
+      
+      .cropper-canvas {
+        opacity: 1 !important;
+      }
+      
+      .cropper-view-box img {
+        opacity: 1 !important;
+      }
+
+      // Fix the translucent image issue
+      .cropper-canvas img {
+        opacity: 1 !important;
+        filter: none !important;
+      }
+
+      // Ensure the cropper doesn't interfere with buttons
+      .cropper-modal {
+        pointer-events: none;
+        opacity: 0 !important;
+        display: none !important;
+      }
+
+      .cropper-crop-box {
+        pointer-events: auto;
+      }
+
+      // Force image to be fully opaque
+      .cropper-canvas > img {
+        opacity: 1 !important;
+        filter: none !important;
+      }
+
+      // Override default cropper styles
+      .cropper-bg {
+        background: none !important;
+      }
+
+      .cropper-wrap-box {
+        pointer-events: none;
+      }
+
+      .cropper-crop-box {
+        pointer-events: auto;
+      }
 
       .cropper-view-box {
         border-radius: 50%;
         outline: none;
-        box-shadow: 0 0 0 1px var(--primary-color);
+        box-shadow: 0 0 0 1px var(--primary-color, #667eea);
       }
 
       .cropper-face {
@@ -86,13 +154,13 @@
       }
 
       .cropper-point {
-        background-color: var(--primary-color);
+        background-color: var(--primary-color, #667eea);
         width: 8px;
         height: 8px;
       }
 
       .cropper-line {
-        background-color: var(--primary-color);
+        background-color: var(--primary-color, #667eea);
       }
     }
 
@@ -112,7 +180,11 @@
       justify-content: flex-end;
       gap: 12px;
       padding: 16px 20px;
-      border-top: 1px solid var(--border-color);
+      border-top: 1px solid var(--border-color, #ddd);
+      background: var(--bg-card, #ffffff);
+      position: relative;
+      z-index: 1000;
+      pointer-events: auto;
 
       button {
         display: flex;
@@ -124,6 +196,10 @@
         font-weight: 500;
         cursor: pointer;
         transition: all 0.2s ease;
+        position: relative;
+        z-index: 1001;
+        outline: none;
+        pointer-events: auto;
 
         svg {
           font-size: 18px;
@@ -132,26 +208,34 @@
         &:disabled {
           opacity: 0.5;
           cursor: not-allowed;
+          pointer-events: none;
+        }
+
+        &:focus {
+          outline: 2px solid var(--primary-color, #667eea);
+          outline-offset: 2px;
         }
 
         &.cancel-button {
           background: none;
-          border: 1px solid var(--border-color);
-          color: var(--text-color);
+          border: 1px solid var(--border-color, #ddd);
+          color: var(--text-color, #333);
+          min-width: 80px;
 
           &:hover:not(:disabled) {
-            background-color: var(--bg-soft);
-            border-color: var(--text-color-soft);
+            background-color: var(--bg-soft, #f5f5f5);
+            border-color: var(--text-color-secondary, #666);
           }
         }
 
         &.apply-button {
-          background-color: var(--primary-color);
+          background-color: var(--primary-color, #667eea);
           border: none;
           color: white;
+          min-width: 80px;
 
           &:hover:not(:disabled) {
-            background-color: var(--primary-hover);
+            background-color: var(--primary-hover, #5a67d8);
             transform: translateY(-1px);
           }
 

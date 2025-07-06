@@ -1,73 +1,35 @@
-# Dependencies
-node_modules/
-/.pnp
-.pnp.js
+# dependencies
+/node_modules
+/api/node_modules
+/client/node_modules
 
-# Environment variables
+# environment variables
 .env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+/api/.env
+/client/.env
 
-# Testing
-/coverage
-
-# Production
+# build outputs
 /build
+/client/build
 /dist
 
-# Logs
-logs
+# logs
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Runtime data
-pids
-*.pid
-*.seed
-*.pid.lock
-
-# IDE and editor files
+# misc
+.DS_Store
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 .idea/
 .vscode/
-*.swp
-*.swo
-*.swn
-*.bak
 
-# OS generated files
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
-
-# Uploaded files
+# uploads
 /api/public/upload/*
 /client/public/upload/*
 !/api/public/upload/.gitkeep
-!/client/public/upload/.gitkeep
-
-# Debug files
-debug.log
-debug/
-
-# Temporary files
-*.tmp
-*.temp
-.cache/
-
-# Database files
-*.sqlite
-*.db
-
-# Misc
-.env.development
-.env.production
-.env.test
-cookies.txt 
+!/client/public/upload/.gitkeep 

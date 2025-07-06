@@ -272,10 +272,31 @@ export const getPosts = async (req, res) => {
     const userInfo = jwt.verify(token, process.env.JWT_SECRET || "secretkey");
     const userId = req.query.userId;
 
-    // Build query for posts
     let query = {};
+
     if (userId) {
+      // If requesting a specific user's posts, show only their posts
       query.userId = userId;
+    } else {
+      // For the main feed, show only posts from followed users + own posts
+
+      // Get list of users that the current user follows
+      const followedUsers = await Relationship.find({
+        followerUserId: userInfo.id,
+      }).select("followedUserId");
+
+      // Extract the user IDs from the relationships
+      const followedUserIds = followedUsers.map((rel) => rel.followedUserId);
+
+      // Include the current user's own posts as well
+      followedUserIds.push(userInfo.id);
+
+      // Query posts only from followed users and self
+      query.userId = { $in: followedUserIds };
+
+      console.log(
+        `📋 Feed for user ${userInfo.id}: showing posts from ${followedUserIds.length} users (${followedUsers.length} followed + self)`
+      );
     }
 
     // Get posts from database with user information
