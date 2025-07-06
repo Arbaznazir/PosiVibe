@@ -890,30 +890,42 @@ export const checkFileType = (file) => {
  */
 export const checkContent = async (text, type = "text", userId = null) => {
   try {
-    const result = await analyzeTextContent(text, { contentType: type });
+    const result = await analyzeCombinedContent({ text });
 
     if (!result.isClean && userId) {
-      // Log violation for admin dashboard
-      logContentViolation("text", userId, result, { text, type });
+      // Update trust score instead of banning
+      await updateTrustScore(userId, {
+        type: type,
+        severity: result.severity,
+        reason: `Content violation in ${type}`,
+      });
+
+      // Get user's current trust status
+      const trustStatus = await checkTrustStatus(userId);
+
+      // Log violation but don't ban
+      await logContentViolation(type, userId, result);
+
+      return {
+        allowed: true, // Always allow but with reduced trust
+        trustScore: trustStatus.trustScore,
+        warnings: trustStatus.warnings,
+        requiresModeration: trustStatus.requiresModeration,
+        message:
+          trustStatus.trustScore < 30
+            ? "Warning: Your trust score is low. Further violations may restrict your actions."
+            : "Content posted with reduced trust score.",
+        filterResult: result,
+      };
     }
 
-    return result;
-  } catch (error) {
-    console.error("Content check error:", error.message);
     return {
-      isClean: false,
-      confidence: 0.1,
-      violations: [
-        {
-          type: "check_error",
-          severity: "medium",
-          source: "system",
-          reason: "Content check failed - blocked for safety",
-        },
-      ],
-      severity: "medium",
-      details: { error: error.message },
+      allowed: true,
+      filterResult: result,
     };
+  } catch (error) {
+    console.error("Content check error:", error);
+    throw error;
   }
 };
 

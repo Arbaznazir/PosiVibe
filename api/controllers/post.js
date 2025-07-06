@@ -11,6 +11,10 @@ import { uploadToCloudinary } from "../utils/uploadToCloudinary.js";
 import Post from "../models/Post.js";
 import User from "../models/User.js";
 import Relationship from "../models/Relationship.js";
+import {
+  updateTrustScore,
+  checkTrustStatus,
+} from "../utils/trustScoreManager.js";
 
 // All data is now stored in MongoDB Atlas
 
@@ -25,6 +29,9 @@ export const addPost = async (req, res) => {
     console.log("🔒 Verifying user token...");
     const userInfo = jwt.verify(token, process.env.JWT_SECRET || "secretkey");
     console.log("✅ Token verified for user:", userInfo.id);
+
+    // Check trust status first
+    const trustStatus = await checkTrustStatus(userInfo.id);
 
     const { desc } = req.body;
     let imgUrl = null;
@@ -155,108 +162,44 @@ export const addPost = async (req, res) => {
     });
 
     if (!contentAnalysis.isClean) {
-      // Log the violation with detailed information
-      logContentViolation("post", userInfo.id, contentAnalysis, {
-        desc,
-        img: imgUrl,
-      });
-      console.log("❌ Content violation detected:", {
+      // Update trust score for violation
+      const trustUpdate = await updateTrustScore(userInfo.id, {
+        type: "post",
         severity: contentAnalysis.severity,
-        confidence: contentAnalysis.confidence,
-        violations: contentAnalysis.violations,
+        reason: "Content violation in post",
       });
 
-      // If user is banned (trust score 0), block all actions
-      if (contentAnalysis.details?.trustUpdate?.isBanned) {
-        return res.status(403).json({
-          message:
-            "Your account has been suspended due to multiple violations. Please contact an administrator.",
-          severity: "critical",
-          isBanned: true,
-          trustScore: 0,
-        });
-      }
-
-      // For other violations, show warning with trust score impact
-      const trustUpdate = contentAnalysis.details?.trustUpdate;
-      const warningMessage = {
-        message: "Content flagged for violation.",
+      // Return detailed response with trust score
+      return res.status(403).json({
+        message: "Content flagged for violation",
         severity: contentAnalysis.severity,
-        trustScore: {
-          current: trustUpdate?.newTrustScore || null,
-          penalty: trustUpdate?.penalty || null,
-        },
+        trustScore: trustUpdate.newTrustScore,
+        warnings: trustUpdate.warnings,
         suggestedEdit: desc ? cleanText(desc) : null,
-        canRetry: true,
-      };
-
-      // Add severity-specific messages
-      if (contentAnalysis.severity === "critical") {
-        warningMessage.message =
-          "Critical content violation detected. Your trust score has been significantly reduced.";
-      } else if (contentAnalysis.severity === "high") {
-        warningMessage.message =
-          "Serious content violation detected. This has impacted your trust score.";
-      } else if (contentAnalysis.severity === "medium") {
-        warningMessage.message =
-          "Content violation detected. Please review our community guidelines.";
-      } else {
-        warningMessage.message =
-          "Minor content violation detected. Please be mindful of our community guidelines.";
-      }
-
-      return res.status(403).json(warningMessage);
+      });
     }
 
-    // Content is clean, proceed with post creation
-    console.log("📝 Creating new post...");
+    // Create and save the post
     const newPost = new Post({
-      desc: desc || "",
-      img: imgUrl || null,
       userId: userInfo.id,
+      desc: desc,
+      img: imgUrl,
+      createdAt: moment(Date.now()).format("YYYY-MM-DD HH:mm:ss"),
     });
 
     await newPost.save();
 
-    // Log successful content creation
-    console.log("✅ Post created successfully:", {
-      postId: newPost._id,
-      userId: userInfo.id,
-      contentLength: desc?.length || 0,
-      hasImage: !!imgUrl,
-      analysis: {
-        severity: contentAnalysis.severity,
-        confidence: contentAnalysis.confidence,
-        librariesUsed:
-          contentAnalysis.violations
-            ?.map((v) => v.library)
-            .filter((v, i, a) => a.indexOf(v) === i) || [],
-      },
-    });
-
-    res.status(200).json({
-      message: "Post has been created successfully.",
+    // Return success with current trust score
+    return res.status(200).json({
+      message: "Post created successfully",
+      trustScore: trustStatus.trustScore,
       post: newPost,
-      contentAnalysis: {
-        severity: contentAnalysis.severity,
-        confidence: contentAnalysis.confidence,
-      },
     });
-  } catch (err) {
-    console.error("❌ Error in addPost:", {
-      error: err.message,
-      stack: err.stack,
-      type: err.name,
-      code: err.code,
-    });
-
-    if (err.name === "JsonWebTokenError") {
-      return res.status(403).json("Invalid token!");
-    }
-
-    res.status(500).json({
-      message: "Internal server error during post creation",
-      error: process.env.NODE_ENV === "development" ? err.message : undefined,
+  } catch (error) {
+    console.error("Error in addPost:", error);
+    return res.status(500).json({
+      message: "Internal server error",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };

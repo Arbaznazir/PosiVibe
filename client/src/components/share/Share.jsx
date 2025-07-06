@@ -8,78 +8,93 @@ import { makeRequest } from "../../axios";
 import ImageCropper from "../imageCropper/ImageCropper";
 import { IMAGE_TYPES } from "../../utils/imageProcessing";
 import CloseIcon from '@mui/icons-material/Close';
+import toast from 'react-hot-toast';
 
 const Share = () => {
   const { currentUser } = useContext(AuthContext);
   const [file, setFile] = useState(null);
   const [desc, setDesc] = useState("");
   const [showCropper, setShowCropper] = useState(false);
-  const [imageType, setImageType] = useState("POST_SQUARE"); // Default to square post
-  const fileInputRef = useRef(null);
+  const fileRef = useRef();
 
   const queryClient = useQueryClient();
 
-  const handleImageChange = (e) => {
-    const selectedFile = e.target.files[0];
-    if (selectedFile) {
-      setFile(selectedFile);
-      setShowCropper(true); // Show cropper when file is selected
-      setImageType("POST_SQUARE");
-    }
-    // Reset file input
-    e.target.value = '';
-  };
-
-  const handleCropComplete = (croppedImage) => {
-    setFile(croppedImage);
-    setShowCropper(false);
-  };
-
-  const handleCropCancel = () => {
-    setShowCropper(false);
-    setFile(null);
-  };
-
-  const handleRemoveImage = () => {
-    setFile(null);
-    setShowCropper(false);
-  };
-
-  // Upload mutation for regular posts
   const postMutation = useMutation(
     (newPost) => {
       const formData = new FormData();
       
       if (file) {
         formData.append("image", file);
-        const transform = IMAGE_TYPES[imageType].cloudinaryTransform || IMAGE_TYPES[imageType];
-        Object.entries(transform).forEach(([key, value]) => {
-          formData.append(`transform_${key}`, value);
-        });
+        const transform = IMAGE_TYPES["POST_SQUARE"];
+        if (transform) {
+          Object.entries(transform).forEach(([key, value]) => {
+            formData.append(key, value);
+          });
+        }
       }
+      formData.append("desc", desc);
       
-      if (desc) {
-        formData.append("desc", desc);
-      }
-
       return makeRequest.post("/posts", formData);
     },
     {
-      onSuccess: () => {
-        queryClient.invalidateQueries(["posts"]);
+      onSuccess: (response) => {
+        if (response.data.trustScore !== undefined) {
+          // Show trust score feedback
+          const score = response.data.trustScore;
+          let message = `Post created. Your trust score: ${score}`;
+          if (score < 50) {
+            message += ". Please be mindful of our community guidelines.";
+          }
+          toast.success(message);
+        } else {
+          toast.success("Post created successfully!");
+        }
+        
         setDesc("");
         setFile(null);
-        setShowCropper(false);
+        queryClient.invalidateQueries(["posts"]);
+      },
+      onError: (error) => {
+        const message = error?.response?.data?.message || "Error creating post";
+        toast.error(message);
+        if (error?.response?.data?.trustScore !== undefined) {
+          toast.error(`Trust score reduced to: ${error.response.data.trustScore}`);
+        }
       },
     }
   );
 
-  const handleShare = async () => {
-    if (!file && !desc) return;
+  const handlePost = async (e) => {
+    e.preventDefault();
+    if (!desc && !file) {
+      toast.error("Please add some content to your post");
+      return;
+    }
     try {
       await postMutation.mutateAsync();
     } catch (err) {
       console.error("Error creating post:", err);
+    }
+  };
+
+  const handleFileChange = (e) => {
+    const selectedFile = e.target.files[0];
+    if (selectedFile) {
+      setFile(selectedFile);
+      setShowCropper(true);
+    }
+  };
+
+  const onCropComplete = (croppedImg) => {
+    setFile(croppedImg);
+    setShowCropper(false);
+  };
+
+  const handleCloseCropper = () => {
+    setShowCropper(false);
+    setFile(null);
+    if (fileRef.current) {
+      fileRef.current.value = "";
     }
   };
 
@@ -97,12 +112,10 @@ const Share = () => {
             />
           </div>
           <div className="right">
-            {file && !showCropper && (
-              <div className="preview-container">
+            {file && (
+              <div className="file">
                 <img className="file" alt="" src={URL.createObjectURL(file)} />
-                <button className="remove-image" onClick={handleRemoveImage}>
-                  <CloseIcon />
-                </button>
+                <CloseIcon className="close" onClick={() => setFile(null)} />
               </div>
             )}
           </div>
@@ -114,9 +127,9 @@ const Share = () => {
               type="file"
               id="file"
               style={{ display: "none" }}
+              ref={fileRef}
+              onChange={handleFileChange}
               accept="image/*"
-              onChange={handleImageChange}
-              ref={fileInputRef}
             />
             <label htmlFor="file">
               <div className="item">
@@ -126,17 +139,16 @@ const Share = () => {
             </label>
           </div>
           <div className="right">
-            <button onClick={handleShare} disabled={!file && !desc}>Share</button>
+            <button onClick={handlePost}>Share</button>
           </div>
         </div>
       </div>
-
       {showCropper && file && (
         <ImageCropper
           imageUrl={URL.createObjectURL(file)}
-          aspectRatio={IMAGE_TYPES[imageType].aspectRatio}
-          onCropComplete={handleCropComplete}
-          onCancel={handleCropCancel}
+          aspectRatio={1}
+          onCropComplete={onCropComplete}
+          onCancel={handleCloseCropper}
         />
       )}
     </div>

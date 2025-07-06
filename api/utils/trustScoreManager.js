@@ -2,10 +2,10 @@ import User from "../models/User.js";
 
 // Trust score deduction weights based on violation severity
 const TRUST_PENALTIES = {
-  critical: 25, // Severe violations
-  high: 15, // Major violations
-  medium: 10, // Moderate violations
-  low: 5, // Minor violations
+  critical: 15, // Reduced from 25
+  high: 10, // Reduced from 15
+  medium: 5, // Reduced from 10
+  low: 2, // Reduced from 5
 };
 
 /**
@@ -39,10 +39,16 @@ export const updateTrustScore = async (userId, violation) => {
     user.trustScore = newTrustScore;
     user.trustHistory.push(trustEvent);
 
-    // If trust score hits 0, ban the user
-    if (newTrustScore === 0 && !user.isBanned) {
-      user.isBanned = true;
-      user.banReason = "Trust score depleted due to multiple violations";
+    // Instead of banning, add warning if trust score is low
+    if (newTrustScore < 30 && !user.warnings) {
+      user.warnings = [];
+    }
+
+    if (newTrustScore < 30) {
+      user.warnings.push({
+        reason: `Trust score low (${newTrustScore}) due to ${violation.type} violation`,
+        timestamp: new Date(),
+      });
     }
 
     await user.save();
@@ -51,7 +57,7 @@ export const updateTrustScore = async (userId, violation) => {
       userId,
       newTrustScore,
       penalty,
-      isBanned: user.isBanned,
+      warnings: user.warnings,
       trustEvent,
     };
   } catch (error) {
@@ -73,10 +79,10 @@ export const checkTrustStatus = async (userId) => {
     }
 
     return {
-      canPerformActions: !user.isBanned,
+      canPerformActions: true, // Always allow actions, but with reduced trust
       trustScore: user.trustScore,
-      isBanned: user.isBanned,
-      banReason: user.banReason,
+      warnings: user.warnings || [],
+      requiresModeration: user.trustScore < 50, // Posts require moderation if trust score is low
     };
   } catch (error) {
     console.error("Trust status check error:", error);
@@ -85,12 +91,12 @@ export const checkTrustStatus = async (userId) => {
 };
 
 /**
- * Admin function to unban a user and reset trust score
+ * Admin function to reset user's trust score
  * @param {string} userId - The user's ID
  * @param {string} adminId - The admin's user ID
  * @returns {Promise<Object>} Updated user info
  */
-export const unbanUser = async (userId, adminId) => {
+export const resetTrustScore = async (userId, adminId) => {
   try {
     const [user, admin] = await Promise.all([
       User.findById(userId),
@@ -102,19 +108,18 @@ export const unbanUser = async (userId, adminId) => {
     }
 
     if (!admin || !admin.isAdmin) {
-      throw new Error("Unauthorized: Only admins can unban users");
+      throw new Error("Unauthorized: Only admins can reset trust scores");
     }
 
     // Reset user's status
-    user.isBanned = false;
-    user.trustScore = 50; // Start with 50% trust after unban
-    user.banReason = "";
+    user.trustScore = 70; // Start with 70% trust
+    user.warnings = [];
 
-    // Record the unban event
+    // Record the reset event
     user.trustHistory.push({
-      score: 50,
-      reason: "Admin unban",
-      violationType: "unban",
+      score: 70,
+      reason: "Admin trust score reset",
+      violationType: "reset",
       timestamp: new Date(),
     });
 
@@ -123,11 +128,10 @@ export const unbanUser = async (userId, adminId) => {
     return {
       userId,
       trustScore: user.trustScore,
-      isBanned: false,
-      message: "User unbanned successfully",
+      message: "User trust score reset successfully",
     };
   } catch (error) {
-    console.error("Unban error:", error);
+    console.error("Trust score reset error:", error);
     throw error;
   }
 };
