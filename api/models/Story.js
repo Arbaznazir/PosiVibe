@@ -2,10 +2,10 @@ import mongoose from "mongoose";
 
 const storySchema = new mongoose.Schema(
   {
-    // Content type: 'text', 'image', or 'video'
+    // Content type: 'text' or 'image'
     type: {
       type: String,
-      enum: ["text", "image", "video"],
+      enum: ["text", "image"],
       required: true,
     },
     // For text stories
@@ -18,15 +18,10 @@ const storySchema = new mongoose.Schema(
       type: String,
       default: "#6366f1", // Default purple
     },
-    // For image/video stories
+    // For image stories
     media: {
       type: String,
       maxlength: 200,
-    },
-    // Video duration in seconds (max 30)
-    videoDuration: {
-      type: Number,
-      max: 30,
     },
     userId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -37,7 +32,6 @@ const storySchema = new mongoose.Schema(
     expiresAt: {
       type: Date,
       default: Date.now,
-      expires: 86400, // 24 hours in seconds
     },
     // View tracking
     views: [
@@ -58,8 +52,8 @@ const storySchema = new mongoose.Schema(
   }
 );
 
-// Index for automatic cleanup
-storySchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+// Index for automatic cleanup (24 hours = 86400 seconds)
+storySchema.index({ expiresAt: 1 }, { expireAfterSeconds: 86400 });
 
 const Story = mongoose.model("Story", storySchema);
 

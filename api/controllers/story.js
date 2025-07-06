@@ -1,11 +1,15 @@
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
 import {
-  filterImageFilename,
   logContentViolation,
   checkContent,
   checkFileType,
-} from "../utils/contentFilter.js";
+  analyzeImageContent,
+} from "../utils/aiContentFilter.js";
+import {
+  uploadToCloudinary,
+  deleteFromCloudinary,
+} from "../utils/uploadToCloudinary.js";
 import moment from "moment";
 import Story from "../models/Story.js";
 import User from "../models/User.js";
@@ -61,7 +65,6 @@ export const getStories = async (req, res) => {
             text: story.text,
             media: story.media,
             backgroundColor: story.backgroundColor,
-            videoDuration: story.videoDuration,
             userId: userId,
             createdAt: story.createdAt,
             expiresAt: story.expiresAt,
@@ -123,11 +126,12 @@ export const addStory = async (req, res) => {
       try {
         console.log("Add story - userInfo:", userInfo);
         console.log("Add story - body:", req.body);
+        console.log("Add story - files:", req.files);
 
-        const { type, text, backgroundColor, media, videoDuration } = req.body;
+        const { type, text, backgroundColor } = req.body;
 
         // Validate story type
-        if (!["text", "image", "video"].includes(type)) {
+        if (!["text", "image"].includes(type)) {
           return res.status(400).json({ error: "Invalid story type" });
         }
 
@@ -156,70 +160,95 @@ export const addStory = async (req, res) => {
             });
           }
         } else {
-          // For image/video stories
-          if (!media) {
+          // For image stories
+          if (!req.files || !req.files.media) {
             return res
               .status(400)
               .json({ error: `Media file is required for ${type} stories` });
           }
 
-          // Content filter for media filename
-          const mediaCheck = filterImageFilename(media);
-          if (!mediaCheck.isClean) {
-            logContentViolation("story", userInfo.id, mediaCheck, { media });
+          const mediaFile = req.files.media;
+
+          // Check file type
+          const fileCheck = checkFileType(mediaFile.name);
+          if (!fileCheck.isValid) {
             return res.status(400).json({
-              error: "Content not allowed",
-              reason: mediaCheck.reason,
-              message: `Your story ${type} contains inappropriate content. Please choose a different file.`,
+              error: "Invalid file type",
+              message: fileCheck.message,
             });
           }
 
-          // Video duration validation
-          if (type === "video") {
-            if (!videoDuration || videoDuration <= 0) {
-              return res
-                .status(400)
-                .json({ error: "Video duration is required" });
-            }
-            if (videoDuration > 30) {
-              return res
-                .status(400)
-                .json({ error: "Video duration must be 30 seconds or less" });
-            }
+          try {
+            // Upload to Cloudinary
+            const uploadResult = await uploadToCloudinary(
+              mediaFile.data,
+              mediaFile.name,
+              "stories"
+            );
+
+            // Create new story object
+            const storyData = {
+              type,
+              userId: userInfo.id,
+              media: uploadResult.secure_url,
+              views: [],
+              expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours from now
+            };
+
+            // Create story in MongoDB
+            const newStory = await Story.create(storyData);
+            console.log("✅ Story created with media:", newStory);
+
+            return res.status(200).json({
+              message: "Story has been created",
+              story: {
+                id: newStory._id,
+                type: newStory.type,
+                media: newStory.media,
+                createdAt: newStory.createdAt,
+                expiresAt: newStory.expiresAt,
+              },
+            });
+          } catch (error) {
+            console.error("Story creation error:", error);
+            return res.status(500).json({
+              error: "Failed to create story",
+              message: error.message,
+            });
           }
         }
 
-        // Validate ObjectId
-        if (!mongoose.Types.ObjectId.isValid(userInfo.id)) {
-          return res.status(400).json("Invalid user ID");
-        }
-
-        // Create new story object
+        // For text stories
         const storyData = {
-          type,
+          type: "text",
+          text: text.trim(),
+          backgroundColor: backgroundColor || "#6366f1",
           userId: userInfo.id,
           views: [],
+          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours from now
         };
-
-        // Add type-specific fields
-        if (type === "text") {
-          storyData.text = text.trim();
-          storyData.backgroundColor = backgroundColor || "#6366f1";
-        } else {
-          storyData.media = media;
-          if (type === "video" && videoDuration) {
-            storyData.videoDuration = videoDuration;
-          }
-        }
 
         // Create story in MongoDB
         const newStory = await Story.create(storyData);
-        console.log("✅ Story created (passed content filter):", newStory);
+        console.log("✅ Story created (text):", newStory);
 
-        return res.status(200).json("Story has been created.");
+        return res.status(200).json({
+          message: "Story has been created",
+          story: {
+            id: newStory._id,
+            type: newStory.type,
+            text: newStory.text,
+            backgroundColor: newStory.backgroundColor,
+            createdAt: newStory.createdAt,
+            expiresAt: newStory.expiresAt,
+          },
+        });
       } catch (err) {
         console.error("Add story error:", err);
-        return res.status(500).json(err);
+        return res.status(500).json({
+          error: "Failed to create story",
+          message: err.message,
+        });
       }
     }
   );

@@ -206,7 +206,7 @@ const Register = () => {
                 <label className="terms-checkbox">
                   <input type="checkbox" required />
                   <span className="checkmark"></span>
-                  I agree to the <Link to="/terms" className="terms-link">Terms of Service</Link> and <Link to="/privacy" className="terms-link">Privacy Policy</Link>
+                  I agree to the Terms of Service and Privacy Policy
                 </label>
               </div>
 
@@ -231,19 +231,23 @@ const Register = () => {
             </div>
 
             <div className="social-login">
-              <button className="social-btn google">
+              <button className="social-btn google" disabled>
                 <Google className="social-icon" />
                 Google
               </button>
-              <button className="social-btn facebook">
+              <button className="social-btn facebook" disabled>
                 <Facebook className="social-icon" />
                 Facebook
               </button>
-              <button className="social-btn twitter">
+              <button className="social-btn twitter" disabled>
                 <Twitter className="social-icon" />
                 Twitter
               </button>
             </div>
+
+            <p style={{ textAlign: 'center', fontSize: '12px', color: 'var(--text-color-secondary)', marginTop: '10px' }}>
+              Social login coming soon
+            </p>
           </div>
         </div>
 

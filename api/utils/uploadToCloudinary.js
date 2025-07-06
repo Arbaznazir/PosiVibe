@@ -1,72 +1,38 @@
-import cloudinary from "../config/cloudinary.js";
-import { analyzeImageContent } from "./contentFilter.js";
+import { cloudinary } from "../config/cloudinary.js";
 
-/**
- * Upload file to Cloudinary with content moderation
- * @param {Buffer} fileBuffer - File buffer
- * @param {string} originalname - Original filename
- * @param {string} folder - Cloudinary folder name
- * @returns {Promise<Object>} Upload result
- */
-export const uploadToCloudinary = async (
-  fileBuffer,
-  originalname,
-  folder = "posivibe"
-) => {
+export const uploadToCloudinary = async (file, transformations = {}) => {
   try {
-    // First, analyze the image content if it's an image
-    const fileExtension = originalname.split(".").pop().toLowerCase();
-    const imageExtensions = ["jpg", "jpeg", "png", "gif", "webp"];
+    // Handle FormData file or base64 string
+    let uploadData = file;
 
-    if (imageExtensions.includes(fileExtension)) {
-      // Create a temporary file path for analysis
-      const tempPath = `/tmp/${Date.now()}_${originalname}`;
-
-      // For content analysis, we'd need to save temporarily or use a different approach
-      // For now, we'll rely on Cloudinary's built-in moderation features
+    // If it's FormData, extract the base64 data
+    if (file.startsWith("data:")) {
+      uploadData = file;
+    } else {
+      // Convert buffer to base64 if it's not already
+      const base64Image = Buffer.from(file).toString("base64");
+      uploadData = `data:image/jpeg;base64,${base64Image}`;
     }
 
-    return new Promise((resolve, reject) => {
-      const uploadOptions = {
-        folder: folder,
-        resource_type: "auto", // Automatically detect file type
-        public_id: `${Date.now()}_${originalname.split(".")[0]}`,
-        transformation: [
-          {
-            quality: "auto:good",
-            fetch_format: "auto",
-          },
-        ],
-        // Enable Cloudinary's AI-based content moderation (optional)
-        // moderation: "aws_rek", // Commented out as it requires AWS integration
-        notification_url: process.env.CLOUDINARY_WEBHOOK_URL || undefined,
-      };
-
-      // Upload from buffer
-      cloudinary.uploader
-        .upload_stream(uploadOptions, (error, result) => {
-          if (error) {
-            console.error("Cloudinary upload error:", error);
-            reject(error);
-          } else {
-            console.log("✅ File uploaded to Cloudinary:", result.public_id);
-            resolve({
-              public_id: result.public_id,
-              secure_url: result.secure_url,
-              url: result.url,
-              format: result.format,
-              resource_type: result.resource_type,
-              bytes: result.bytes,
-              width: result.width,
-              height: result.height,
-              moderation: result.moderation || null,
-            });
-          }
-        })
-        .end(fileBuffer);
+    // Upload to Cloudinary with transformations
+    const result = await cloudinary.uploader.upload(uploadData, {
+      folder: "posivibe",
+      resource_type: "auto",
+      transformation: [
+        {
+          width: transformations.width || 800,
+          height: transformations.height || 600,
+          crop: transformations.crop || "fill",
+          gravity: transformations.gravity || "auto",
+          quality: transformations.quality || 90,
+          format: transformations.format || "jpg",
+        },
+      ],
     });
+
+    return result.secure_url;
   } catch (error) {
-    console.error("Upload to Cloudinary failed:", error);
+    console.error("Cloudinary upload error:", error);
     throw error;
   }
 };
@@ -78,11 +44,40 @@ export const uploadToCloudinary = async (
  */
 export const deleteFromCloudinary = async (publicId) => {
   try {
-    const result = await cloudinary.uploader.destroy(publicId);
+    if (!publicId) {
+      throw new Error("Public ID is required");
+    }
+
+    const result = await cloudinary.uploader.destroy(publicId, {
+      invalidate: true, // Invalidate CDN cache
+    });
+
+    if (result.result !== "ok") {
+      throw new Error(`Failed to delete file: ${result.result}`);
+    }
+
     console.log("🗑️ File deleted from Cloudinary:", publicId);
     return result;
   } catch (error) {
     console.error("Cloudinary deletion error:", error);
     throw error;
   }
+};
+
+/**
+ * Generate Cloudinary URL with optimization
+ * @param {string} publicId - Cloudinary public ID
+ * @param {Object} options - Transform options
+ * @returns {string} Optimized URL
+ */
+export const getOptimizedUrl = (publicId, options = {}) => {
+  const defaultOptions = {
+    quality: "auto:good",
+    fetch_format: "auto",
+    dpr: "auto",
+    responsive: true,
+  };
+
+  const finalOptions = { ...defaultOptions, ...options };
+  return cloudinary.url(publicId, finalOptions);
 };

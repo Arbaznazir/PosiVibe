@@ -1,18 +1,23 @@
 import Login from "./pages/login/Login";
 import Register from "./pages/register/Register";
 import TimeLimitPage from "./pages/timeLimit/TimeLimit";
+import MessagesPage from "./pages/messages/Messages";
+import Friends from "./pages/friends/Friends";
+import Admin from "./pages/admin/Admin";
 import {
   createBrowserRouter,
   RouterProvider,
   Outlet,
   Navigate,
   useParams,
+  Link,
 } from "react-router-dom";
 import Navbar from "./components/navbar/Navbar";
 import LeftBar from "./components/leftBar/LeftBar";
 import RightBar from "./components/rightBar/RightBar";
 import Home from "./pages/home/Home";
 import Profile from "./pages/profile/Profile";
+import ErrorBoundary from "./components/errorBoundary/ErrorBoundary";
 import "./style.scss";
 import { useContext, useState } from "react";
 import { DarkModeContext } from "./context/darkModeContext";
@@ -99,6 +104,19 @@ function App() {
     return children;
   };
 
+  const AdminRoute = ({ children }) => {
+    console.log("AdminRoute check:", {
+      currentUser,
+      isAdmin: currentUser?.isAdmin,
+    });
+
+    if (!currentUser || !currentUser.isAdmin) {
+      console.log("Redirecting to /app - Not admin");
+      return <Navigate to="/app" />;
+    }
+    return children;
+  };
+
   const router = createBrowserRouter([
     {
       path: "/",
@@ -132,6 +150,22 @@ function App() {
           path: "/app/profile/:id",
           element: <Profile />,
         },
+        {
+          path: "/app/messages",
+          element: <MessagesPage />,
+        },
+        {
+          path: "/app/friends",
+          element: <Friends />,
+        },
+        {
+          path: "/app/admin",
+          element: (
+            <AdminRoute>
+              <Admin />
+            </AdminRoute>
+          ),
+        },
       ],
     },
     {
@@ -154,12 +188,64 @@ function App() {
         </LoggedInRoute>
       ),
     },
+    {
+      path: "*",
+      element: (
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            height: "100vh",
+            textAlign: "center",
+            padding: "20px",
+          }}
+        >
+          <h1
+            style={{
+              fontSize: "72px",
+              margin: "0",
+              color: "var(--primary-color)",
+            }}
+          >
+            404
+          </h1>
+          <h2 style={{ margin: "20px 0", color: "var(--text-color)" }}>
+            Page Not Found
+          </h2>
+          <p
+            style={{
+              color: "var(--text-color-secondary)",
+              marginBottom: "30px",
+            }}
+          >
+            The page you're looking for doesn't exist or has been moved.
+          </p>
+          <Link
+            to="/app"
+            style={{
+              padding: "12px 24px",
+              background: "var(--primary-gradient)",
+              color: "white",
+              textDecoration: "none",
+              borderRadius: "8px",
+              fontWeight: "600",
+            }}
+          >
+            Go Home
+          </Link>
+        </div>
+      ),
+    },
   ]);
 
   return (
-    <div>
-      <RouterProvider router={router} />
-    </div>
+    <ErrorBoundary>
+      <div>
+        <RouterProvider router={router} />
+      </div>
+    </ErrorBoundary>
   );
 }
 

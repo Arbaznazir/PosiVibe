@@ -188,65 +188,99 @@ body {
   min-height: 100vh;
   background: var(--bg-soft);
   transition: background-color var(--transition-smooth);
-  padding-top: 70px; // Account for fixed navbar
 
-  @include mobile {
-    padding-top: 60px;
-  }
+  .main-container {
+    display: grid;
+    grid-template-columns: 280px 1fr 320px;
+    gap: 20px;
+    padding: 20px;
+    margin-top: 60px; // Height of navbar
+    height: calc(100vh - 60px); // Subtract navbar height
+    overflow: hidden; // Prevent double scrollbars
 
-      .main-container {
-      display: grid;
-      grid-template-columns: 280px 1fr 320px;
-      gap: 20px;
-      flex: 1;
-      max-width: 1400px;
-      margin: 0 auto;
-      width: 100%;
-      padding: 20px;
-      align-items: start;
+    @include mobile {
+      grid-template-columns: 1fr;
+      padding: 10px;
+      margin-top: 50px; // Smaller navbar on mobile
+      height: calc(100vh - 50px);
+    }
 
     @include tablet {
-      grid-template-columns: 1fr;
-      gap: 16px;
-      padding: 16px;
-
-      .sidebar-left,
+      grid-template-columns: 200px 1fr;
       .sidebar-right {
         display: none;
       }
     }
 
-    @include mobile {
-      padding: 12px;
-    }
-
     .sidebar-left {
       position: sticky;
-      top: 90px; // Account for fixed navbar
-      height: fit-content;
-      max-height: calc(100vh - 110px);
+      top: 80px; // Navbar height + padding
+      height: calc(100vh - 80px);
       overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--text-color-muted) transparent;
 
-      @include tablet {
+      &::-webkit-scrollbar {
+        width: 6px;
+      }
+
+      &::-webkit-scrollbar-track {
+        background: transparent;
+      }
+
+      &::-webkit-scrollbar-thumb {
+        background-color: var(--text-color-muted);
+        border-radius: 3px;
+      }
+
+      @include mobile {
         display: none;
       }
     }
 
     .content-area {
-      min-width: 0; // Prevents grid overflow
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--text-color-muted) transparent;
+      padding: 0 10px;
+      height: 100%;
+
+      &::-webkit-scrollbar {
+        width: 6px;
+      }
+
+      &::-webkit-scrollbar-track {
+        background: transparent;
+      }
+
+      &::-webkit-scrollbar-thumb {
+        background-color: var(--text-color-muted);
+        border-radius: 3px;
+      }
     }
 
     .sidebar-right {
       position: sticky;
-      top: 90px; // Account for fixed navbar
-      height: fit-content;
-      max-height: calc(100vh - 110px);
+      top: 80px; // Navbar height + padding
+      height: calc(100vh - 80px);
       overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--text-color-muted) transparent;
 
-      @include tablet {
+      &::-webkit-scrollbar {
+        width: 6px;
+      }
+
+      &::-webkit-scrollbar-track {
+        background: transparent;
+      }
+
+      &::-webkit-scrollbar-thumb {
+        background-color: var(--text-color-muted);
+        border-radius: 3px;
+      }
+
+      @include mobile {
         display: none;
       }
     }

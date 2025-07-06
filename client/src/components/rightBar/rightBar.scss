@@ -86,7 +86,7 @@
         padding: 0;
 
         .suggestion-item, .activity-item, .friend-item {
-          padding: 16px 20px;
+          padding: 8px 12px;  // Reduced padding
           border-bottom: 1px solid var(--border-soft);
           transition: all var(--transition-normal);
 
@@ -100,16 +100,16 @@
 
           .loading, .empty-state {
             text-align: center;
-            padding: 20px;
+            padding: 12px;  // Reduced padding
             color: var(--text-color-secondary);
-            font-size: 14px;
+            font-size: 13px;  // Slightly smaller font
           }
 
           .user-info {
             display: flex;
             align-items: center;
-            gap: 12px;
-            margin-bottom: 12px;
+            gap: 8px;  // Reduced gap
+            margin-bottom: 8px;  // Reduced margin
 
             .avatar {
               position: relative;
@@ -121,10 +121,10 @@
               min-width: 0;
 
               .name {
-                font-size: 15px;
+                font-size: 14px;  // Smaller font size
                 font-weight: 600;
                 color: var(--text-color);
-                margin-bottom: 4px;
+                margin-bottom: 2px;  // Reduced margin
                 display: flex;
                 align-items: center;
                 gap: 4px;
@@ -134,15 +134,15 @@
 
                 .verified {
                   color: var(--primary-color);
-                  font-size: 14px;
+                  font-size: 13px;  // Smaller icon
                   flex-shrink: 0;
                 }
               }
 
               .subtitle {
-                font-size: 12px;
+                font-size: 11px;  // Smaller font size
                 color: var(--text-color-secondary);
-              font-weight: 500;
+                font-weight: 500;
                 display: flex;
                 align-items: center;
                 gap: 4px;
@@ -161,7 +161,7 @@
 
           .actions {
             display: flex;
-            gap: 8px;
+            gap: 6px;  // Reduced gap
             align-items: center;
             flex-wrap: wrap;
 
@@ -169,15 +169,15 @@
               background: var(--primary-gradient);
               color: white;
               border: none;
-              padding: 8px 16px;
+              padding: 6px 12px;  // Reduced padding
               border-radius: var(--border-radius-md);
               font-weight: 600;
-              font-size: 12px;
+              font-size: 11px;  // Smaller font size
               cursor: pointer;
               transition: all var(--transition-normal);
               display: flex;
               align-items: center;
-              gap: 6px;
+              gap: 4px;  // Reduced gap
               flex-shrink: 0;
 
               &:hover {
@@ -192,7 +192,7 @@
               }
 
               .icon {
-                font-size: 14px;
+                font-size: 13px;  // Smaller icon
               }
             }
 

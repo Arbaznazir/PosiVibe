@@ -5,7 +5,7 @@ import {
   filterCommentContent,
   logContentViolation,
   cleanText,
-} from "../utils/contentFilter.js";
+} from "../utils/aiContentFilter.js";
 import {
   createCommentNotification,
   createMentionNotification,

@@ -1,0 +1,176 @@
+@import "../../style.scss";
+
+.image-cropper {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+
+  .cropper-container {
+    background-color: var(--bg-main);
+    border-radius: 12px;
+    box-shadow: var(--shadow-lg);
+    width: 90%;
+    max-width: 600px;
+    max-height: 90vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    animation: slideUp 0.3s ease-out;
+
+    .cropper-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border-color);
+
+      h3 {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--text-color);
+        margin: 0;
+      }
+
+      .close-button {
+        background: none;
+        border: none;
+        color: var(--text-color-soft);
+        cursor: pointer;
+        padding: 8px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+
+        &:hover {
+          background-color: var(--bg-soft);
+          color: var(--text-color);
+        }
+
+        &:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
+        svg {
+          font-size: 20px;
+        }
+      }
+    }
+
+    .cropper-content {
+      padding: 20px;
+      background-color: var(--bg-soft);
+      flex: 1;
+      min-height: 0;
+      position: relative;
+
+      .cropper-view-box {
+        border-radius: 50%;
+        outline: none;
+        box-shadow: 0 0 0 1px var(--primary-color);
+      }
+
+      .cropper-face {
+        background-color: inherit;
+      }
+
+      .cropper-view-box {
+        outline: inherit;
+      }
+
+      .cropper-point {
+        background-color: var(--primary-color);
+        width: 8px;
+        height: 8px;
+      }
+
+      .cropper-line {
+        background-color: var(--primary-color);
+      }
+    }
+
+    .error-message {
+      padding: 12px 20px;
+      background-color: var(--danger-soft);
+      color: var(--danger-color);
+      font-size: 0.875rem;
+      text-align: center;
+      margin: 0 20px;
+      border-radius: 8px;
+    }
+
+    .cropper-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 12px;
+      padding: 16px 20px;
+      border-top: 1px solid var(--border-color);
+
+      button {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+
+        svg {
+          font-size: 18px;
+        }
+
+        &:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
+        &.cancel-button {
+          background: none;
+          border: 1px solid var(--border-color);
+          color: var(--text-color);
+
+          &:hover:not(:disabled) {
+            background-color: var(--bg-soft);
+            border-color: var(--text-color-soft);
+          }
+        }
+
+        &.apply-button {
+          background-color: var(--primary-color);
+          border: none;
+          color: white;
+
+          &:hover:not(:disabled) {
+            background-color: var(--primary-hover);
+            transform: translateY(-1px);
+          }
+
+          &:active:not(:disabled) {
+            transform: translateY(0);
+          }
+        }
+      }
+    }
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+} 

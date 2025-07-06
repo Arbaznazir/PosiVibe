@@ -1,5 +1,5 @@
 import axios from "axios";
-import { createContext, useEffect, useState } from "react";
+import { createContext, useEffect, useState, useCallback } from "react";
 import { toast } from "react-hot-toast";
 
 export const AuthContext = createContext();
@@ -20,15 +20,36 @@ api.interceptors.request.use((config) => {
 });
 
 export const AuthContextProvider = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState(
-    JSON.parse(localStorage.getItem("user")) || null
-  );
+  const [currentUser, setCurrentUser] = useState(() => {
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      try {
+        const user = JSON.parse(storedUser);
+        // Validate that user has required fields
+        if (user && (user.id || user._id) && user.name && user.token) {
+          return user;
+        } else {
+          console.log("Invalid user data in localStorage, clearing...");
+          localStorage.removeItem("user");
+          return null;
+        }
+      } catch (error) {
+        console.error("Error parsing user data from localStorage:", error);
+        localStorage.removeItem("user");
+        return null;
+      }
+    }
+    return null;
+  });
 
   const login = async (inputs) => {
     try {
       const res = await api.post("/auth/login", inputs);
-      setCurrentUser(res.data);
-      localStorage.setItem("user", JSON.stringify(res.data));
+      console.log("Login response:", res.data);
+      const userData = res.data;
+      console.log("Setting user data with isAdmin:", userData.isAdmin);
+      setCurrentUser(userData);
+      localStorage.setItem("user", JSON.stringify(userData));
       toast.success("Welcome back!");
       // Redirect to app after successful login
       window.location.href = "/app";
@@ -38,7 +59,7 @@ export const AuthContextProvider = ({ children }) => {
     }
   };
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
       await api.post("/auth/logout");
       setCurrentUser(null);
@@ -50,7 +71,7 @@ export const AuthContextProvider = ({ children }) => {
       setCurrentUser(null);
       localStorage.removeItem("user");
     }
-  };
+  }, []);
 
   const updateCurrentUser = (updatedUserData) => {
     const updatedUser = { ...currentUser, ...updatedUserData };
@@ -60,14 +81,28 @@ export const AuthContextProvider = ({ children }) => {
   };
 
   useEffect(() => {
-    const checkTimeLimit = async () => {
+    const verifyAndCheckTimeLimit = async () => {
       if (!currentUser) return;
 
       try {
-        const res = await api.get("/users/time-limit");
+        // First verify that the user still exists
+        const verifyRes = await api.get("/users/verify");
+
+        // Update user data if it has changed
+        if (verifyRes.data) {
+          const freshUserData = { ...verifyRes.data, token: currentUser.token };
+          if (JSON.stringify(currentUser) !== JSON.stringify(freshUserData)) {
+            console.log("Updating user data with fresh data from server");
+            setCurrentUser(freshUserData);
+            localStorage.setItem("user", JSON.stringify(freshUserData));
+          }
+        }
+
+        // Then check time limit
+        const timeLimitRes = await api.get("/users/time-limit");
 
         // Show warning when time is running low
-        const remaining = res.data.remaining;
+        const remaining = timeLimitRes.data.remaining;
         const HOUR = 60 * 60 * 1000; // 1 hour in milliseconds
 
         if (remaining <= 0) {
@@ -77,15 +112,23 @@ export const AuthContextProvider = ({ children }) => {
         } else if (remaining <= HOUR / 2) {
           // Less than 30 minutes
           toast.error(
-            `Only ${res.data.formattedTimeRemaining} remaining today!`
+            `Only ${timeLimitRes.data.formattedTimeRemaining} remaining today!`
           );
         } else if (remaining <= HOUR) {
           // Less than 1 hour
-          toast.warning(`${res.data.formattedTimeRemaining} remaining today`);
+          toast.warning(
+            `${timeLimitRes.data.formattedTimeRemaining} remaining today`
+          );
         }
       } catch (err) {
-        console.error("Time limit check error:", err);
-        if (err.response?.status === 403) {
+        console.error("User verification or time limit check error:", err);
+
+        if (err.response?.status === 404) {
+          // User no longer exists
+          console.log("User no longer exists, logging out");
+          await logout();
+          toast.error("Your account is no longer valid. Please login again.");
+        } else if (err.response?.status === 403) {
           // Time limit exceeded error from middleware
           await logout();
           toast.error("Daily time limit exceeded. Please try again tomorrow.");
@@ -93,11 +136,13 @@ export const AuthContextProvider = ({ children }) => {
       }
     };
 
-    // Check time limit every minute
-    checkTimeLimit(); // Check immediately on mount
-    const interval = setInterval(checkTimeLimit, 60000);
+    // Check immediately on mount
+    verifyAndCheckTimeLimit();
+
+    // Check every minute
+    const interval = setInterval(verifyAndCheckTimeLimit, 60000);
     return () => clearInterval(interval);
-  }, [currentUser]);
+  }, [currentUser, logout]); // Include both currentUser and logout in dependencies
 
   return (
     <AuthContext.Provider

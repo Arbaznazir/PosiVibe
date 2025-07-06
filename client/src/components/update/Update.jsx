@@ -1,410 +1,305 @@
-import { useState, useEffect, useContext } from "react";
+import { useState } from "react";
 import { makeRequest } from "../../axios";
 import "./update.scss";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import CloudUploadIcon from "@mui/icons-material/CloudUpload";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import ErrorIcon from "@mui/icons-material/Error";
-import Avatar from "../avatar/Avatar";
-import { AuthContext } from "../../context/authContext";
-import toast from 'react-hot-toast';
+import {
+  IMAGE_TYPES,
+  PROFILE_RATIO,
+  COVER_RATIO,
+  validateImage,
+  buildCloudinaryTransform
+} from "../../utils/imageProcessing";
+import ImageCropper from "../imageCropper/ImageCropper";
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import CloseIcon from '@mui/icons-material/Close';
+import PersonIcon from '@mui/icons-material/Person';
+import ImageIcon from '@mui/icons-material/Image';
+import LanguageIcon from '@mui/icons-material/Language';
+import LocationOnIcon from '@mui/icons-material/LocationOn';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 
 const Update = ({ setOpenUpdate, user }) => {
-  const { updateCurrentUser } = useContext(AuthContext);
   const [cover, setCover] = useState(null);
   const [profile, setProfile] = useState(null);
   const [texts, setTexts] = useState({
-    email: user.email || "",
-    password: "",
     name: user.name || "",
     city: user.city || "",
     website: user.website || "",
   });
-  const [errors, setErrors] = useState({});
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [showSuccess, setShowSuccess] = useState(false);
-  const [previewUrls, setPreviewUrls] = useState({
-    cover: null,
-    profile: null
-  });
+  const [coverUrl, setCoverUrl] = useState(null);
+  const [profileUrl, setProfileUrl] = useState(null);
+  const [showCropper, setShowCropper] = useState(false);
+  const [cropType, setCropType] = useState(null);
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
 
-  const upload = async (file) => {
+  const upload = async (file, type) => {
     try {
-      setIsUploading(true);
-      const formData = new FormData();
-      formData.append("file", file);
+      // Convert file to base64
+      const reader = new FileReader();
+      const base64Promise = new Promise((resolve, reject) => {
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = (error) => reject(error);
+      });
+      reader.readAsDataURL(file);
+      const base64Data = await base64Promise;
+
+      // Get transformations based on type
+      const transform = buildCloudinaryTransform(IMAGE_TYPES[type]);
       
-      // Simulate upload progress
-      const interval = setInterval(() => {
-        setUploadProgress(prev => {
-          if (prev >= 90) {
-            clearInterval(interval);
-            return prev;
-          }
-          return prev + 10;
-        });
-      }, 100);
-      
+      // Create form data with base64 and transformations
+      const formData = {
+        file: base64Data,
+        ...Object.entries(transform).reduce((acc, [key, value]) => {
+          acc[`transform_${key}`] = value;
+          return acc;
+        }, {})
+      };
+
       const res = await makeRequest.post("/upload", formData);
-      setUploadProgress(100);
-      setTimeout(() => {
-        setIsUploading(false);
-        setUploadProgress(0);
-      }, 500);
-      
-      console.log("Upload response:", res.data);
-      
-      // Handle new Cloudinary response format
-      if (res.data && res.data.url) {
-        console.log("Using Cloudinary URL:", res.data.url);
-        return res.data.url; // Return the Cloudinary URL
-      } else if (typeof res.data === 'string') {
-        console.log("Using fallback format:", res.data);
-        return res.data; // Fallback for old format
-      }
-      
       return res.data;
     } catch (err) {
-      console.log(err);
-      setIsUploading(false);
-      setUploadProgress(0);
-      throw err;
+      console.error("Upload error:", err);
+      throw new Error(err.response?.data?.message || "Error uploading image");
     }
-  };
-
-  const validateForm = () => {
-    const newErrors = {};
-    
-    if (!texts.name.trim()) {
-      newErrors.name = "Name is required";
-    }
-    
-    if (!texts.email.trim()) {
-      newErrors.email = "Email is required";
-    } else if (!/\S+@\S+\.\S+/.test(texts.email)) {
-      newErrors.email = "Email is invalid";
-    }
-    
-    if (texts.website && !texts.website.startsWith('http')) {
-      newErrors.website = "Website must start with http:// or https://";
-    }
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
   };
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setTexts((prev) => ({ ...prev, [name]: value }));
-    
-    // Clear error when user starts typing
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: "" }));
-    }
+    setTexts((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    setError(null); // Clear any previous errors when user makes changes
   };
 
-  const queryClient = useQueryClient();
-
-  const mutation = useMutation(
-    (user) => {
-      return makeRequest.put("/users", user);
-    },
-    {
-      onSuccess: (data) => {
-        queryClient.invalidateQueries(["user"]);
-        setShowSuccess(true);
-        toast.success("Profile updated successfully! ✨");
-        console.log("Profile update response:", data);
-        
-        // Update the current user in context with new data
-        if (data.user) {
-          updateCurrentUser({
-            name: data.user.name,
-            email: data.user.email,
-            city: data.user.city,
-            website: data.user.website,
-            profilePic: data.user.profilePic,
-            coverPic: data.user.coverPic
-          });
-        }
-        
-        setTimeout(() => {
-          setOpenUpdate(false);
-        }, 1500);
-      },
-      onError: (error) => {
-        console.error("Profile update error:", error);
-        console.error("Error response:", error.response);
-        
-        // Handle different types of errors
-        if (error.response?.status === 400 && error.response?.data) {
-          const errorData = error.response.data;
-          console.error("400 error data:", errorData);
-          
-          if (errorData.message && (errorData.message.includes("violates community guidelines") || 
-              errorData.message.includes("inappropriate content") ||
-              errorData.message.includes("Profile information violates"))) {
-            
-            toast.error(
-              `🚫 Profile Update Blocked\n\nYour profile information contains inappropriate content that violates our community guidelines. Please use appropriate language and content.`,
-              {
-                duration: 7000,
-                style: {
-                  background: '#fee2e2',
-                  border: '1px solid #fecaca',
-                  color: '#dc2626',
-                  maxWidth: '400px',
-                  fontSize: '14px',
-                  lineHeight: '1.4'
-                },
-                icon: '🚫'
-              }
-            );
-            
-            setErrors({ general: "Profile contains inappropriate content. Please review and update." });
-          } else {
-            // Handle other 400 errors (validation, etc.)
-            const message = errorData.message || errorData.error || "Invalid data provided";
-            toast.error(`❌ ${message}`);
-            setErrors({ general: message });
-          }
-        } else if (error.response?.status === 401) {
-          toast.error("❌ Session expired. Please log in again.");
-          setErrors({ general: "Session expired. Please log in again." });
-        } else if (error.response?.status === 403) {
-          toast.error("❌ Access denied. Please log in again.");
-          setErrors({ general: "Access denied. Please log in again." });
-        } else {
-          const message = error.response?.data?.message || error.message || "Failed to update profile";
-          toast.error(`❌ ${message}`);
-          setErrors({ general: message });
-        }
-      }
-    }
-  );
-
-  const handleClick = async (e) => {
-    e.preventDefault();
-
-    if (!validateForm()) {
-      return;
-    }
+  const handleImageSelect = async (e, type) => {
+    const file = e.target.files[0];
+    if (!file) return;
 
     try {
-      let coverUrl = user.coverPic;
-      let profileUrl = user.profilePic;
+      validateImage(file);
+      const url = URL.createObjectURL(file);
       
-      console.log("Starting profile update...");
-      console.log("Current user data:", user);
-      console.log("Form data:", texts);
-      
-      if (cover) {
-        console.log("Uploading cover image...");
-        coverUrl = await upload(cover);
-        console.log("Cover uploaded:", coverUrl);
-      }
-      if (profile) {
-        console.log("Uploading profile image...");
-        profileUrl = await upload(profile);
-        console.log("Profile uploaded:", profileUrl);
-      }
-
-      const updatePayload = { ...texts, coverPic: coverUrl, profilePic: profileUrl };
-      console.log("Sending update payload:", updatePayload);
-      
-      mutation.mutate(updatePayload);
-    } catch (error) {
-      console.error("Upload error:", error);
-      setErrors({ general: "Failed to upload images. Please try again." });
-    }
-  };
-
-  const handleImageChange = (e, type) => {
-    const file = e.target.files[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) { // 5MB limit
-        setErrors(prev => ({ ...prev, [type]: "File size must be less than 5MB" }));
-        return;
-      }
-      if (!file.type.startsWith('image/')) {
-        setErrors(prev => ({ ...prev, [type]: "Please select an image file" }));
-        return;
-      }
-      
-      if (type === 'cover') {
-        setCover(file);
-        setPreviewUrls(prev => ({ ...prev, cover: URL.createObjectURL(file) }));
-        setErrors(prev => ({ ...prev, cover: "" }));
-      } else {
+      if (type === "PROFILE") {
         setProfile(file);
-        setPreviewUrls(prev => ({ ...prev, profile: URL.createObjectURL(file) }));
-        setErrors(prev => ({ ...prev, profile: "" }));
+        setProfileUrl(url);
+      } else {
+        setCover(file);
+        setCoverUrl(url);
       }
+      
+      setCropType(type);
+      setShowCropper(true);
+      setError(null);
+    } catch (err) {
+      setError(err.message);
     }
   };
 
-  // Cleanup function to prevent memory leaks
-  useEffect(() => {
-    return () => {
-      if (previewUrls.cover) URL.revokeObjectURL(previewUrls.cover);
-      if (previewUrls.profile) URL.revokeObjectURL(previewUrls.profile);
+  const handleCropComplete = async (croppedImage) => {
+    try {
+      if (cropType === "PROFILE") {
+        setProfile(croppedImage);
+        setProfileUrl(URL.createObjectURL(croppedImage));
+      } else {
+        setCover(croppedImage);
+        setCoverUrl(URL.createObjectURL(croppedImage));
+      }
+      setShowCropper(false);
+    } catch (err) {
+      setError("Error processing image");
+      console.error(err);
+    }
   };
-  }, [previewUrls]);
+
+  const handleCropCancel = () => {
+    setShowCropper(false);
+    if (cropType === "PROFILE") {
+      setProfile(null);
+      setProfileUrl(null);
+    } else {
+      setCover(null);
+      setCoverUrl(null);
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (loading) return;
+
+    try {
+      setLoading(true);
+      setError(null);
+      
+      let coverPicUrl = user.coverPic;
+      let profilePicUrl = user.profilePic;
+
+      // Only upload new images if they've been changed
+      if (cover) {
+        coverPicUrl = await upload(cover, "COVER");
+      }
+      
+      if (profile) {
+        profilePicUrl = await upload(profile, "PROFILE");
+      }
+
+      // Update user profile
+      const updateData = {
+        ...texts,
+        coverPic: coverPicUrl,
+        profilePic: profilePicUrl,
+      };
+
+      const { data } = await makeRequest.put("/users", updateData);
+      
+      if (data.message === "Updated!") {
+        setOpenUpdate(false);
+        window.location.reload();
+      }
+    } catch (err) {
+      console.error("Update error:", err);
+      setError(err.response?.data?.message || err.message || "Error updating profile");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="update">
       <div className="wrapper">
-        {showSuccess && (
-          <div className="success-message">
-            <CheckCircleIcon />
-            <span>Profile updated successfully!</span>
-          </div>
-        )}
-        
-        <h1>Update Your Profile</h1>
-        
-        {errors.general && (
-          <div className="error-message">
-            <ErrorIcon />
-            <span>{errors.general}</span>
-          </div>
-        )}
-        
-        <form>
-          <div className="files">
-            <label htmlFor="cover">
-              <span>Cover Picture</span>
-              <div className="imgContainer">
-                {previewUrls.cover ? (
-                  <img src={previewUrls.cover} alt="" />
-                ) : user.coverPic ? (
-                  <img src={user.coverPic.startsWith('http') ? user.coverPic : "/upload/" + user.coverPic} alt="" />
-                ) : (
-                  <div className="placeholder-cover">📷</div>
-                )}
-                <CloudUploadIcon className="icon" />
-                {isUploading && cover && (
-                  <div className="upload-progress">
-                    <div className="progress-bar" style={{width: `${uploadProgress}%`}}></div>
-                  </div>
-                )}
-              </div>
-              {errors.cover && <span className="field-error">{errors.cover}</span>}
-            </label>
-            <input
-              type="file"
-              id="cover"
-              style={{ display: "none" }}
-              accept="image/*"
-              onChange={(e) => handleImageChange(e, 'cover')}
-            />
-            
-            <label htmlFor="profile">
-              <span>Profile Picture</span>
-              <div className="imgContainer">
-                {previewUrls.profile ? (
-                  <img src={previewUrls.profile} alt="" />
-                ) : (
-                  <Avatar 
-                    src={user.profilePic} 
-                    name={user.name} 
-                    size="large" 
-                    className="profile-preview"
-                  />
-                )}
-                <CloudUploadIcon className="icon" />
-                {isUploading && profile && (
-                  <div className="upload-progress">
-                    <div className="progress-bar" style={{width: `${uploadProgress}%`}}></div>
-                  </div>
-                )}
-              </div>
-              {errors.profile && <span className="field-error">{errors.profile}</span>}
-            </label>
-            <input
-              type="file"
-              id="profile"
-              style={{ display: "none" }}
-              accept="image/*"
-              onChange={(e) => handleImageChange(e, 'profile')}
-            />
-          </div>
-          
-          <div className="form-group">
-            <label>Email *</label>
-          <input
-              type="email"
-            value={texts.email}
-            name="email"
-            onChange={handleChange}
-              className={errors.email ? 'error' : ''}
-              placeholder="Enter your email"
-          />
-            {errors.email && <span className="field-error">{errors.email}</span>}
-          </div>
-          
-          <div className="form-group">
-          <label>Password</label>
-          <input
-              type="password"
-            value={texts.password}
-            name="password"
-            onChange={handleChange}
-              placeholder="Enter new password (leave blank to keep current)"
-          />
-          </div>
-          
-          <div className="form-group">
-            <label>Name *</label>
-          <input
-            type="text"
-            value={texts.name}
-            name="name"
-            onChange={handleChange}
-              className={errors.name ? 'error' : ''}
-              placeholder="Enter your full name"
-          />
-            {errors.name && <span className="field-error">{errors.name}</span>}
-          </div>
-          
-          <div className="form-group">
-          <label>Country / City</label>
-          <input
-            type="text"
-            name="city"
-            value={texts.city}
-            onChange={handleChange}
-              placeholder="e.g., New York, USA"
-          />
-          </div>
-          
-          <div className="form-group">
-          <label>Website</label>
-          <input
-              type="url"
-            name="website"
-            value={texts.website}
-            onChange={handleChange}
-              className={errors.website ? 'error' : ''}
-              placeholder="https://yourwebsite.com"
-            />
-            {errors.website && <span className="field-error">{errors.website}</span>}
-          </div>
-          
-          <button 
-            type="submit"
-            onClick={handleClick}
-            disabled={mutation.isLoading || isUploading}
-            className="update-btn"
-          >
-            {mutation.isLoading ? "Updating..." : "Update Profile"}
+        <div className="header">
+          <h1>Edit Profile</h1>
+          <button className="close" onClick={() => setOpenUpdate(false)}>
+            <CloseIcon />
           </button>
-        </form>
+        </div>
+
+        {error && (
+          <div className="error-message">
+            <ErrorOutlineIcon />
+            <span>{error}</span>
+          </div>
+        )}
         
-        <button className="close" onClick={() => setOpenUpdate(false)}>
-          ✕
-        </button>
+        {showCropper && (cropType === "PROFILE" ? profileUrl : coverUrl) ? (
+          <ImageCropper
+            imageUrl={cropType === "PROFILE" ? profileUrl : coverUrl}
+            aspectRatio={cropType === "PROFILE" ? PROFILE_RATIO : COVER_RATIO}
+            onCropComplete={handleCropComplete}
+            onCancel={handleCropCancel}
+          />
+        ) : (
+          <form onSubmit={handleSubmit}>
+            <div className="section-title">Profile Images</div>
+            <div className="files">
+              <label className="file-input">
+                <div className="imgContainer">
+                  {coverUrl ? (
+                    <img src={coverUrl} alt="cover" className="cover-img" />
+                  ) : (
+                    <div className="placeholder-cover">
+                      <ImageIcon />
+                      <span>Cover Photo</span>
+                    </div>
+                  )}
+                  <div className="overlay">
+                    <CloudUploadIcon />
+                    <span>Upload Cover</span>
+                  </div>
+                </div>
+                <input
+                  type="file"
+                  style={{ display: "none" }}
+                  onChange={(e) => handleImageSelect(e, "COVER")}
+                  accept="image/*"
+                />
+              </label>
+
+              <label className="file-input">
+                <div className="imgContainer">
+                  {profileUrl ? (
+                    <img src={profileUrl} alt="profile" className="profile-img" />
+                  ) : (
+                    <div className="placeholder-profile">
+                      <PersonIcon />
+                      <span>Profile Photo</span>
+                    </div>
+                  )}
+                  <div className="overlay">
+                    <CloudUploadIcon />
+                    <span>Upload Profile</span>
+                  </div>
+                </div>
+                <input
+                  type="file"
+                  style={{ display: "none" }}
+                  onChange={(e) => handleImageSelect(e, "PROFILE")}
+                  accept="image/*"
+                />
+              </label>
+            </div>
+
+            <div className="section-title">Personal Information</div>
+            <div className="form-fields">
+              <div className="form-group">
+                <label>
+                  <PersonIcon />
+                  <span>Name</span>
+                </label>
+                <input
+                  type="text"
+                  name="name"
+                  value={texts.name}
+                  onChange={handleChange}
+                  placeholder="Enter your name"
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label>
+                  <LocationOnIcon />
+                  <span>City</span>
+                </label>
+                <input
+                  type="text"
+                  name="city"
+                  value={texts.city}
+                  onChange={handleChange}
+                  placeholder="Enter your city"
+                />
+              </div>
+
+              <div className="form-group">
+                <label>
+                  <LanguageIcon />
+                  <span>Website</span>
+                </label>
+                <input
+                  type="text"
+                  name="website"
+                  value={texts.website}
+                  onChange={handleChange}
+                  placeholder="Enter your website"
+                />
+              </div>
+            </div>
+
+            <div className="form-actions">
+              <button 
+                type="button" 
+                className="cancel-btn" 
+                onClick={() => setOpenUpdate(false)}
+                disabled={loading}
+              >
+                Cancel
+              </button>
+              <button 
+                type="submit" 
+                className="update-btn"
+                disabled={loading}
+              >
+                {loading ? "Saving..." : "Save Changes"}
+              </button>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );

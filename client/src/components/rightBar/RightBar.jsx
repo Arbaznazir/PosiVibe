@@ -142,7 +142,7 @@ const RightBar = () => {
                     <Avatar 
                       src={user.profilePic} 
                       name={user.name} 
-                      size="medium" 
+                      size="small" 
                       className="avatar"
                       showOnline={false}
                     />

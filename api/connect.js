@@ -8,11 +8,8 @@ const MONGODB_URI =
 const connectDB = async () => {
   try {
     await mongoose.connect(MONGODB_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
       serverSelectionTimeoutMS: 30000, // 30 seconds
       socketTimeoutMS: 45000, // 45 seconds
-
       maxPoolSize: 10,
       minPoolSize: 5,
       maxIdleTimeMS: 30000,

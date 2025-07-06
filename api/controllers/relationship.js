@@ -143,7 +143,7 @@ export const addRelationship = async (req, res) => {
         });
 
         if (existingRelationship) {
-          return res.status(409).json("Already following this user.");
+          return res.status(200).json("Already following this user.");
         }
 
         const newRelationship = new Relationship({

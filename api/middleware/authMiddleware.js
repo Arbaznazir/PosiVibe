@@ -1,60 +1,36 @@
 import jwt from "jsonwebtoken";
-import mongoose from "mongoose";
+import User from "../models/User.js";
 
-export const validateToken = (req, res, next) => {
-  const token = req.cookies.accessToken;
-
-  if (!token) {
-    return res.status(401).json("Not logged in!");
-  }
-
+export const authMiddleware = async (req, res, next) => {
   try {
-    const userInfo = jwt.verify(token, process.env.JWT_SECRET || "secretkey");
+    // Get token from cookie or Authorization header
+    const token =
+      req.cookies.accessToken || req.headers.authorization?.split(" ")[1];
+    if (!token) return res.status(401).json("Not logged in!");
 
-    // Check if the user ID is a valid ObjectId
-    if (!mongoose.Types.ObjectId.isValid(userInfo.id)) {
-      console.warn("Invalid user ID in token:", userInfo.id);
-      // Clear the invalid token
-      res.clearCookie("accessToken");
-      return res.status(401).json("Invalid session. Please login again.");
-    }
+    // Verify token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || "secretkey");
+    if (!decoded) return res.status(403).json("Token is not valid!");
 
-    req.userInfo = userInfo;
+    // Check if user exists and is not banned
+    const user = await User.findById(decoded.id);
+    if (!user) return res.status(404).json("User not found!");
+    if (user.isBanned)
+      return res.status(403).json({
+        error: "Account suspended",
+        reason:
+          user.lastBanReason ||
+          "Account suspended for violating community guidelines",
+      });
+
+    // Add user info to request
+    req.userInfo = decoded;
     next();
   } catch (err) {
-    console.error("Token validation error:", err);
-    // Clear the invalid token
-    res.clearCookie("accessToken");
-    return res.status(403).json("Invalid token. Please login again.");
-  }
-};
-
-export const validateTokenAsync = async (req, res, next) => {
-  const token = req.cookies.accessToken;
-
-  if (!token) {
-    return res.status(401).json("Not logged in!");
-  }
-
-  jwt.verify(
-    token,
-    process.env.JWT_SECRET || "secretkey",
-    async (err, userInfo) => {
-      if (err) {
-        console.error("Token validation error:", err);
-        res.clearCookie("accessToken");
-        return res.status(403).json("Invalid token. Please login again.");
-      }
-
-      // Check if the user ID is a valid ObjectId
-      if (!mongoose.Types.ObjectId.isValid(userInfo.id)) {
-        console.warn("Invalid user ID in token:", userInfo.id);
-        res.clearCookie("accessToken");
-        return res.status(401).json("Invalid session. Please login again.");
-      }
-
-      req.userInfo = userInfo;
-      next();
+    if (err.name === "JsonWebTokenError") {
+      return res.status(403).json("Token is not valid!");
     }
-  );
+    console.error("Auth middleware error:", err);
+    return res.status(500).json("Internal server error");
+  }
 };

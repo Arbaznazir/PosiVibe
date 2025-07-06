@@ -3,7 +3,7 @@ import jwt from "jsonwebtoken";
 import {
   filterUserContent,
   logContentViolation,
-} from "../utils/contentFilter.js";
+} from "../utils/aiContentFilter.js";
 import User from "../models/User.js";
 
 // All user data is now stored in MongoDB Atlas
@@ -13,9 +13,15 @@ export const register = async (req, res) => {
     console.log("Registration attempt:", req.body);
 
     // 🚫 CONTENT FILTERATION - Check for inappropriate content in registration
-    const filterResult = filterUserContent(req.body);
-    if (!filterResult.isClean) {
-      // Log the violation
+    const filterResult = await filterUserContent(req.body);
+    console.log("🔍 Registration filter result:", filterResult);
+
+    if (
+      !filterResult.isClean &&
+      filterResult.violations &&
+      filterResult.violations.length > 0
+    ) {
+      // Log the violation only if there are actual violations
       logContentViolation(
         "user_registration",
         "unknown",
@@ -25,7 +31,7 @@ export const register = async (req, res) => {
 
       return res.status(400).json({
         error: "Content not allowed",
-        reason: filterResult.reason,
+        reason: filterResult.reason || "Content violates community guidelines",
         message:
           "Your registration contains content that violates our community guidelines. Please choose a different username or display name.",
       });
@@ -58,12 +64,36 @@ export const register = async (req, res) => {
 
     await newUser.save();
 
+    // Create JWT token for automatic login
+    const token = jwt.sign(
+      { id: newUser._id },
+      process.env.JWT_SECRET || "secretkey"
+    );
+
+    // Remove password from response and convert to plain object
+    const userObj = newUser.toObject();
+    delete userObj.password;
+    userObj.id = userObj._id; // Ensure id field exists for frontend compatibility
+    userObj.token = token; // Add token to response for frontend
+
     console.log(
-      "✅ User created successfully (passed content filter):",
+      "✅ User created and logged in successfully:",
       newUser.username
     );
 
-    return res.status(200).json("User has been created.");
+    // Set cookie and return user data (same as login)
+    res
+      .cookie("accessToken", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+        maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      })
+      .status(200)
+      .json({
+        ...userObj,
+        message: "Account created successfully! Welcome to PosiVibe!",
+      });
   } catch (err) {
     console.error("Registration error:", err);
     return res.status(500).json("Registration failed");
@@ -72,46 +102,58 @@ export const register = async (req, res) => {
 
 export const login = async (req, res) => {
   try {
-    console.log("Login attempt:", req.body.username);
-
     // Find user by username or email
     const user = await User.findOne({
-      $or: [{ username: req.body.username }, { email: req.body.username }],
+      $or: [
+        { username: req.body.username },
+        { email: req.body.username }, // Allow login with email
+      ],
     });
 
-    if (!user) {
-      return res.status(404).json("User not found!");
+    if (!user) return res.status(404).json("User not found!");
+
+    const isPasswordCorrect = await bcrypt.compare(
+      req.body.password,
+      user.password
+    );
+
+    if (!isPasswordCorrect) return res.status(400).json("Wrong password!");
+
+    // Check if user is banned
+    if (user.isBanned) {
+      return res.status(403).json({
+        error: "Account suspended",
+        reason:
+          user.lastBanReason ||
+          "Account suspended for violating community guidelines",
+      });
     }
 
-    // Check password
-    const checkPassword = bcrypt.compareSync(req.body.password, user.password);
-    if (!checkPassword) {
-      return res.status(400).json("Wrong password or username!");
-    }
-
-    // Create JWT token
     const token = jwt.sign(
       { id: user._id },
       process.env.JWT_SECRET || "secretkey"
     );
 
-    // Remove password from response and convert to plain object
-    const userObj = user.toObject();
-    delete userObj.password;
-    userObj.id = userObj._id; // Ensure id field exists for frontend compatibility
+    const { password, ...userData } = user._doc;
 
-    console.log("Login successful:", user.username);
-    console.log("Returning user data:", userObj);
+    // Add token and ensure id field exists for frontend
+    const responseData = {
+      ...userData,
+      id: userData._id, // Ensure id field exists
+      token, // Include token in response
+      isAdmin: userData.isAdmin || false, // Explicitly include isAdmin flag
+    };
 
     res
       .cookie("accessToken", token, {
         httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
       })
       .status(200)
-      .json(userObj);
+      .json(responseData);
   } catch (err) {
     console.error("Login error:", err);
-    return res.status(500).json("Login failed");
+    res.status(500).json("Internal server error");
   }
 };
 

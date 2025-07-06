@@ -18,19 +18,28 @@ import { addViolation } from "./adminDashboard.js";
 import OpenAI from "openai";
 import sharp from "sharp";
 import path from "path";
-// Import NSFW.js conditionally to avoid module issues
-let nsfwjs = null;
+
+// Initialize modules
+let nsfwModel = null;
 let tf = null;
 let profanityCheck = null;
 
 // Dynamically import modules to handle compatibility issues
 const initializeModules = async () => {
   try {
-    if (!nsfwjs) {
-      // Use browser version of TensorFlow.js
-      tf = require("@tensorflow/tfjs-node");
-      nsfwjs = require("nsfwjs");
+    if (!tf) {
+      // Use ES module version of TensorFlow.js
+      const tfModule = await import("@tensorflow/tfjs-node");
+      tf = tfModule.default;
+
+      const nsfwModule = await import("nsfwjs");
+      const nsfwjs = nsfwModule.default;
+
       await tf.ready();
+      if (!nsfwModel) {
+        nsfwModel = await nsfwjs.load();
+        console.log("✅ NSFWJS model loaded successfully");
+      }
       console.log("✅ TensorFlow initialized successfully");
     }
     if (!profanityCheck) {
@@ -42,6 +51,9 @@ const initializeModules = async () => {
   }
 };
 
+// Initialize modules on startup
+await initializeModules();
+
 // Initialize multiple profanity filters for maximum coverage
 const obscenityMatcher = new RegExpMatcher({
   ...englishDataset.build(),
@@ -52,6 +64,14 @@ const obscenityTextCensor = new TextCensor();
 const toadProfanity = new Profanity();
 const badWordsNext = new BadWordsNext();
 const sentiment = new Sentiment();
+
+// Toxicity thresholds from environment variables
+const TOXICITY_THRESHOLDS = {
+  SOFT: parseFloat(process.env.TOXICITY_SOFT_THRESHOLD) || 0.3,
+  MEDIUM: parseFloat(process.env.TOXICITY_MEDIUM_THRESHOLD) || 0.5,
+  HARD: parseFloat(process.env.TOXICITY_HARD_THRESHOLD) || 0.7,
+  CRITICAL: parseFloat(process.env.TOXICITY_CRITICAL_THRESHOLD) || 0.9,
+};
 
 // Initialize OpenAI for advanced content moderation (primary method)
 let openai = null;
@@ -737,13 +757,7 @@ const ADVANCED_IMAGE_PATTERNS = [
   /scam|fraud|phishing|malware|virus|trojan|ransomware|hack|exploit/i,
 ];
 
-// Toxicity thresholds
-const TOXICITY_THRESHOLDS = {
-  SOFT: 0.3, // Soft warning threshold
-  MEDIUM: 0.5, // Block threshold
-  HARD: 0.7, // Immediate ban threshold
-  CRITICAL: 0.9, // Permanent ban threshold
-};
+// Note: TOXICITY_THRESHOLDS defined earlier in file from environment variables
 
 /**
  * Check for racist and hate speech content
@@ -1002,6 +1016,406 @@ const isHateSpeechContext = (text, context) => {
 };
 
 /**
+ * Check if text is likely a legitimate name or username
+ * @param {string} text - Text to analyze
+ * @param {string} contentType - Type of content (username, name, etc.)
+ * @returns {boolean} - True if likely a legitimate name
+ */
+const isLegitimateNameOrUsername = (text, contentType = "text") => {
+  if (!text || typeof text !== "string") return false;
+
+  const cleanText = text.trim().toLowerCase();
+
+  // Common legitimate name patterns
+  const namePatterns = [
+    // First/last name combinations
+    /^[a-z]{2,20}\s+[a-z]{2,20}$/i,
+    // Single names (first names, usernames)
+    /^[a-z]{2,20}$/i,
+    // Names with common prefixes/suffixes
+    /^(mr|mrs|ms|dr|prof)\.?\s*[a-z]{2,20}$/i,
+    // Usernames with numbers (common pattern)
+    /^[a-z]{2,15}[0-9]{1,4}$/i,
+    // Names with middle initials
+    /^[a-z]{2,20}\s+[a-z]\.\s+[a-z]{2,20}$/i,
+    // Common username patterns
+    /^[a-z0-9_.-]{3,20}$/i,
+  ];
+
+  // Check if it matches common name patterns
+  const matchesNamePattern = namePatterns.some((pattern) =>
+    pattern.test(cleanText)
+  );
+
+  // Common legitimate names that might trigger false positives
+  const legitimateNames = [
+    // Common first names that might contain flagged substrings
+    "dick",
+    "richard",
+    "dickson",
+    "dickinson",
+    "cox",
+    "cocks",
+    "cocksure",
+    "gay",
+    "gaylord",
+    "gaylen",
+    "hell",
+    "heller",
+    "hellman",
+    "ass",
+    "assad",
+    "assam",
+    "assange",
+    "sex",
+    "sexton",
+    "sexson",
+    "cum",
+    "cummings",
+    "cumming",
+
+    // Muslim/Arabic names
+    "muhammad",
+    "mohammed",
+    "ahmad",
+    "ahmed",
+    "ali",
+    "hassan",
+    "hussain",
+    "fatima",
+    "aisha",
+    "khadija",
+    "zainab",
+    "maryam",
+    "hafsa",
+    "ruqayyah",
+    "omar",
+    "umar",
+    "othman",
+    "uthman",
+    "abu",
+    "ibn",
+    "abdul",
+    "abdel",
+    "khalid",
+    "rashid",
+    "tariq",
+    "yusuf",
+    "ibrahim",
+    "ismail",
+    "musa",
+    "isa",
+    "jesus",
+    "issa",
+    "mariam",
+    "salim",
+    "samir",
+    "nadia",
+    "layla",
+    "amina",
+    "sara",
+    "sarah",
+    "hanan",
+    "dina",
+    "rana",
+    "rania",
+    "lina",
+    "yasmin",
+    "jasmine",
+    "kareem",
+    "karim",
+    "amin",
+    "adnan",
+    "fadi",
+    "majid",
+    "walid",
+    "said",
+    "saeed",
+    "farid",
+    "hamid",
+    "jamil",
+
+    // Hindu/Sanskrit names
+    "krishna",
+    "rama",
+    "sita",
+    "lakshmi",
+    "saraswati",
+    "durga",
+    "kali",
+    "shiva",
+    "vishnu",
+    "brahma",
+    "ganesha",
+    "hanuman",
+    "arjuna",
+    "bhima",
+    "yudhishthira",
+    "nakula",
+    "sahadeva",
+    "draupadi",
+    "kunti",
+    "gandhari",
+    "priya",
+    "anita",
+    "sunita",
+    "kavita",
+    "rita",
+    "gita",
+    "meera",
+    "radha",
+    "indira",
+    "kamala",
+    "uma",
+    "devi",
+    "sri",
+    "shri",
+    "kumar",
+    "kumari",
+    "raj",
+    "raja",
+    "rani",
+    "dev",
+    "deva",
+    "sharma",
+    "gupta",
+    "singh",
+    "patel",
+    "shah",
+    "joshi",
+    "mehta",
+    "agarwal",
+    "bansal",
+    "mittal",
+    "arun",
+    "varun",
+    "tarun",
+    "kiran",
+    "ravi",
+    "suresh",
+    "mahesh",
+    "dinesh",
+    "rakesh",
+    "mukesh",
+    "yogesh",
+    "ramesh",
+    "naresh",
+    "hitesh",
+    "ritesh",
+
+    // Sikh names
+    "gurpreet",
+    "harpreet",
+    "manpreet",
+    "simran",
+    "jaspreet",
+    "kulpreet",
+    "amarpreet",
+    "navpreet",
+    "ranjit",
+    "manjit",
+    "surjit",
+    "baljit",
+    "gurmeet",
+    "harmeet",
+    "parmeet",
+    "jagmeet",
+    "navjot",
+    "harjot",
+    "simranjit",
+    "gagandeep",
+    "mandeep",
+    "hardeep",
+    "kuldeep",
+    "sandeep",
+    "rajdeep",
+    "navdeep",
+    "amardeep",
+    "gurdeep",
+    "pardeep",
+    "sukhdeep",
+    "jasbir",
+    "harbir",
+    "kulbir",
+    "ranbir",
+    "prabhjot",
+    "sukhjot",
+
+    // Buddhist names
+    "buddha",
+    "siddhartha",
+    "gautama",
+    "bodhi",
+    "dharma",
+    "sangha",
+    "tenzin",
+    "lobsang",
+    "thupten",
+    "pema",
+    "dolma",
+    "tashi",
+    "norbu",
+    "rinpoche",
+    "lama",
+    "geshe",
+    "karma",
+    "choden",
+    "wangmo",
+    "yangchen",
+
+    // Jewish names
+    "abraham",
+    "isaac",
+    "jacob",
+    "moses",
+    "david",
+    "solomon",
+    "aaron",
+    "miriam",
+    "rebecca",
+    "rachel",
+    "leah",
+    "sarah",
+    "esther",
+    "ruth",
+    "daniel",
+    "michael",
+    "gabriel",
+    "raphael",
+    "uriel",
+    "samuel",
+    "elijah",
+    "joshua",
+    "caleb",
+    "benjamin",
+    "joseph",
+    "judah",
+    "levi",
+    "asher",
+
+    // Christian names
+    "jesus",
+    "christ",
+    "mary",
+    "joseph",
+    "john",
+    "paul",
+    "peter",
+    "james",
+    "matthew",
+    "mark",
+    "luke",
+    "andrew",
+    "thomas",
+    "philip",
+    "bartholomew",
+    "simon",
+    "judas",
+    "matthias",
+    "stephen",
+    "barnabas",
+    "timothy",
+    "titus",
+
+    // African names
+    "kwame",
+    "kofi",
+    "kojo",
+    "yaw",
+    "akwasi",
+    "kwaku",
+    "kwabena",
+    "ama",
+    "akosua",
+    "afia",
+    "ama",
+    "yaa",
+    "adwoa",
+    "abena",
+    "akua",
+    "fatou",
+    "aminata",
+    "mariama",
+    "kadiatou",
+    "fatoumata",
+    "awa",
+    "mamadou",
+    "ibrahim",
+    "ousmane",
+    "moussa",
+    "sekou",
+    "bakary",
+
+    // Place names that might be usernames
+    "essex",
+    "sussex",
+    "middlesex",
+    "scunthorpe",
+    "penistone",
+
+    // Common surnames
+    "johnson",
+    "jackson",
+    "dickerson",
+    "hancock",
+    "cockerell",
+    "sexton",
+  ];
+
+  // Check if it's a known legitimate name
+  const isKnownLegitimate = legitimateNames.some(
+    (name) => cleanText === name || cleanText.includes(name)
+  );
+
+  // For usernames specifically, be more lenient
+  if (contentType === "username") {
+    // Username-specific patterns
+    const usernamePatterns = [
+      /^[a-z0-9_.-]{3,30}$/i, // Standard username format
+      /^[a-z]+[0-9]+$/i, // Name + numbers
+      /^[a-z]+_[a-z]+$/i, // Name_name format
+    ];
+
+    const matchesUsernamePattern = usernamePatterns.some((pattern) =>
+      pattern.test(cleanText)
+    );
+
+    // If it looks like a username and isn't obviously inappropriate, allow it
+    if (
+      matchesUsernamePattern &&
+      cleanText.length >= 3 &&
+      cleanText.length <= 30
+    ) {
+      return true;
+    }
+  }
+
+  // For display names, be more lenient with common name formats
+  if (contentType === "name" || contentType === "display_name") {
+    // Display name patterns
+    const displayNamePatterns = [
+      /^[a-z\s.'-]{2,50}$/i, // Names with spaces, dots, apostrophes, hyphens
+      /^[a-z]+\s+[a-z]+$/i, // First Last
+      /^[a-z]+$/i, // Single name
+    ];
+
+    const matchesDisplayNamePattern = displayNamePatterns.some((pattern) =>
+      pattern.test(cleanText)
+    );
+
+    if (
+      matchesDisplayNamePattern &&
+      cleanText.length >= 2 &&
+      cleanText.length <= 50
+    ) {
+      return true;
+    }
+  }
+
+  return matchesNamePattern || isKnownLegitimate;
+};
+
+/**
  * Multi-layer text content analysis using multiple libraries
  * @param {string} text - Text to analyze
  * @param {object} options - Analysis options
@@ -1021,6 +1435,165 @@ export const analyzeTextContent = async (text, options = {}) => {
   };
 
   try {
+    // Check if this is likely a legitimate name/username
+    const contentType = options.contentType || "text";
+    const isLikelyName = isLegitimateNameOrUsername(text, contentType);
+
+    // If it's likely a legitimate name, use more lenient filtering
+    if (
+      isLikelyName &&
+      (contentType === "username" ||
+        contentType === "name" ||
+        contentType === "display_name")
+    ) {
+      console.log(
+        `✅ Detected legitimate ${contentType}: "${text}" - applying lenient filtering`
+      );
+
+      // Only check for the most severe violations for names
+      const racistCheck = checkRacistContent(text);
+      if (racistCheck.hasRacistContent) {
+        console.log("🚨 RACIST CONTENT DETECTED IN NAME:", {
+          text: text.substring(0, 100) + "...",
+          violations: racistCheck.violations.length,
+          severity: racistCheck.severity,
+        });
+
+        return {
+          isClean: false,
+          confidence: racistCheck.confidence,
+          violations: racistCheck.violations,
+          severity: racistCheck.severity,
+          reason: "Racist or hate speech content detected in name",
+          details: {
+            racistContent: racistCheck,
+          },
+        };
+      }
+
+      // For names, only check Google Perspective API for extremely toxic content
+      if (process.env.GOOGLE_PERSPECTIVE_API_KEY) {
+        try {
+          const toxicityResult = await analyzeToxicityWithPerspective(text);
+          // Use much higher thresholds for names (only block extremely toxic content)
+          const nameThresholds = {
+            toxicity: 0.95, // 95% - only block extremely toxic
+            severeToxicity: 0.9, // 90% - only block severe toxicity
+            profanity: 0.95, // 95% - very high threshold for profanity in names
+            threat: 0.8, // 80% - block clear threats
+            insult: 0.95, // 95% - high threshold for insults in names
+            identityAttack: 0.8, // 80% - block identity attacks
+            sexuallyExplicit: 0.9, // 90% - block sexually explicit content
+          };
+
+          let hasViolation = false;
+
+          if (toxicityResult.toxicityScore > nameThresholds.toxicity) {
+            results.violations.push({
+              library: "google_perspective",
+              type: "toxicity",
+              score: toxicityResult.toxicityScore,
+              severity: "critical",
+              reason: `Extremely toxic name (${(
+                toxicityResult.toxicityScore * 100
+              ).toFixed(1)}%)`,
+            });
+            hasViolation = true;
+          }
+
+          if (
+            toxicityResult.severeToxicityScore > nameThresholds.severeToxicity
+          ) {
+            results.violations.push({
+              library: "google_perspective",
+              type: "severe_toxicity",
+              score: toxicityResult.severeToxicityScore,
+              severity: "critical",
+              reason: `Severely toxic name (${(
+                toxicityResult.severeToxicityScore * 100
+              ).toFixed(1)}%)`,
+            });
+            hasViolation = true;
+          }
+
+          if (toxicityResult.profanityScore > nameThresholds.profanity) {
+            results.violations.push({
+              library: "google_perspective",
+              type: "profanity",
+              score: toxicityResult.profanityScore,
+              severity: "high",
+              reason: `Extremely profane name (${(
+                toxicityResult.profanityScore * 100
+              ).toFixed(1)}%)`,
+            });
+            hasViolation = true;
+          }
+
+          if (toxicityResult.threatScore > nameThresholds.threat) {
+            results.violations.push({
+              library: "google_perspective",
+              type: "threat",
+              score: toxicityResult.threatScore,
+              severity: "critical",
+              reason: `Threatening name (${(
+                toxicityResult.threatScore * 100
+              ).toFixed(1)}%)`,
+            });
+            hasViolation = true;
+          }
+
+          console.log(`🔍 Perspective API analysis for name "${text}":`, {
+            toxicity: `${(toxicityResult.toxicityScore * 100).toFixed(1)}%`,
+            profanity: `${(toxicityResult.profanityScore * 100).toFixed(1)}%`,
+            threat: `${(toxicityResult.threatScore * 100).toFixed(1)}%`,
+            blocked: hasViolation,
+          });
+        } catch (error) {
+          console.warn("Perspective API error:", error.message);
+        }
+      }
+
+      // Check for extremely obvious inappropriate patterns only
+      const obviousInappropriate = [
+        /fuck/i,
+        /shit/i,
+        /bitch/i,
+        /asshole/i,
+        /cunt/i,
+        /nigger/i,
+        /faggot/i,
+        /retard/i,
+        /hitler/i,
+        /nazi/i,
+        /terrorist/i,
+        /porn/i,
+        /sex/i,
+        /nude/i,
+        /xxx/i,
+      ];
+
+      const hasObviousInappropriate = obviousInappropriate.some((pattern) =>
+        pattern.test(text)
+      );
+      if (hasObviousInappropriate) {
+        results.violations.push({
+          library: "name_filter",
+          type: "inappropriate_name",
+          reason: "Contains obviously inappropriate content",
+          severity: "high",
+        });
+      }
+
+      // Determine result for names
+      if (results.violations.length > 0) {
+        results.isClean = false;
+        results.severity = determineSeverity(results.violations);
+        results.confidence = calculateConfidence(results.violations);
+      }
+
+      return results;
+    }
+
     // 🚨 PRIORITY: Check for racist content first (zero tolerance)
     const racistCheck = checkRacistContent(text);
     if (racistCheck.hasRacistContent) {
@@ -1513,17 +2086,29 @@ const analyzeToxicityWithPerspective = async (text) => {
   const severeToxicityScore = scores.SEVERE_TOXICITY?.summaryScore?.value || 0;
   const profanityScore = scores.PROFANITY?.summaryScore?.value || 0;
   const threatScore = scores.THREAT?.summaryScore?.value || 0;
+  const insultScore = scores.INSULT?.summaryScore?.value || 0;
+  const identityAttackScore = scores.IDENTITY_ATTACK?.summaryScore?.value || 0;
+  const sexuallyExplicitScore =
+    scores.SEXUALLY_EXPLICIT?.summaryScore?.value || 0;
+  const flirtationScore = scores.FLIRTATION?.summaryScore?.value || 0;
 
   return {
     toxicityScore,
     severeToxicityScore,
     profanityScore,
     threatScore,
+    insultScore,
+    identityAttackScore,
+    sexuallyExplicitScore,
+    flirtationScore,
     maxScore: Math.max(
       toxicityScore,
       severeToxicityScore,
       profanityScore,
-      threatScore
+      threatScore,
+      insultScore,
+      identityAttackScore,
+      sexuallyExplicitScore
     ),
   };
 };
@@ -1689,69 +2274,293 @@ export const cleanText = (text, options = {}) => {
  * @param {string} imagePath - Path to the image file
  * @returns {object} - Image analysis result
  */
+/**
+ * Enhanced NSFW image analysis using NSFWjs with TensorFlow
+ * @param {string} imagePath - Path to the image file
+ * @returns {Promise<object>} - Analysis result with predictions and safety assessment
+ */
 export const analyzeImageContent = async (imagePath) => {
+  try {
+    // Initialize modules if not already done
+    await initializeModules();
+
+    // Check if NSFWjs is available
+    if (!nsfwModel || !tf) {
+      console.warn("NSFWjs not available, falling back to basic analysis");
+      return await basicImageAnalysis(imagePath);
+    }
+
+    console.log(`🔍 Analyzing image with NSFWjs: ${path.basename(imagePath)}`);
+
+    // Read and preprocess image
+    const imageBuffer = await sharp(imagePath)
+      .resize(224, 224) // NSFWjs expects 224x224 images
+      .raw()
+      .toBuffer();
+
+    // Convert to tensor
+    const tensor = tf.tensor3d(new Uint8Array(imageBuffer), [224, 224, 3]);
+    const predictions = await nsfwModel.classify(tensor);
+
+    // Clean up tensor to prevent memory leaks
+    tensor.dispose();
+
+    // Process predictions
+    const predictionMap = {};
+    predictions.forEach((pred) => {
+      predictionMap[pred.className] = pred.probability;
+    });
+
+    // Calculate overall NSFW score
+    const nsfwScore =
+      (predictionMap.Porn || 0) * 1.0 +
+      (predictionMap.Sexy || 0) * 0.8 +
+      (predictionMap.Hentai || 0) * 1.0 +
+      (predictionMap.Neutral || 0) * 0.0 +
+      (predictionMap.Drawing || 0) * 0.1;
+
+    // Get thresholds from environment
+    const softThreshold = parseFloat(process.env.NSFW_SOFT_THRESHOLD) || 0.3;
+    const mediumThreshold =
+      parseFloat(process.env.NSFW_MEDIUM_THRESHOLD) || 0.5;
+    const hardThreshold = parseFloat(process.env.NSFW_HARD_THRESHOLD) || 0.7;
+    const criticalThreshold =
+      parseFloat(process.env.NSFW_CRITICAL_THRESHOLD) || 0.9;
+
+    // Determine severity and action
+    let severity = "none";
+    let isClean = true;
+    let action = "allow";
+
+    if (nsfwScore >= criticalThreshold) {
+      severity = "critical";
+      isClean = false;
+      action = "block_permanent";
+    } else if (nsfwScore >= hardThreshold) {
+      severity = "high";
+      isClean = false;
+      action = "block";
+    } else if (nsfwScore >= mediumThreshold) {
+      severity = "medium";
+      isClean = false;
+      action = "review";
+    } else if (nsfwScore >= softThreshold) {
+      severity = "low";
+      isClean = true; // Allow but flag for monitoring
+      action = "flag";
+    }
+
+    // Additional filename check
+    const filename = path.basename(imagePath).toLowerCase();
+    const filenameCheck = await checkImageFilename(filename);
+
+    if (!filenameCheck.isClean) {
+      isClean = false;
+      severity = Math.max(severity, filenameCheck.severity);
+    }
+
+    const result = {
+      isClean,
+      confidence: Math.max(...predictions.map((p) => p.probability)),
+      severity,
+      action,
+      nsfwScore: nsfwScore,
+      predictions: predictions.map((pred) => ({
+        category: pred.className,
+        probability: pred.probability,
+        percentage: `${(pred.probability * 100).toFixed(1)}%`,
+      })),
+      thresholds: {
+        soft: softThreshold,
+        medium: mediumThreshold,
+        hard: hardThreshold,
+        critical: criticalThreshold,
+      },
+      details: {
+        filename: filename,
+        filenameCheck: filenameCheck,
+        topPrediction: predictions[0],
+        riskFactors: [],
+      },
+    };
+
+    // Add risk factors
+    if (predictionMap.Porn > 0.1)
+      result.details.riskFactors.push(
+        `Pornographic content: ${(predictionMap.Porn * 100).toFixed(1)}%`
+      );
+    if (predictionMap.Sexy > 0.2)
+      result.details.riskFactors.push(
+        `Sexually suggestive: ${(predictionMap.Sexy * 100).toFixed(1)}%`
+      );
+    if (predictionMap.Hentai > 0.1)
+      result.details.riskFactors.push(
+        `Hentai content: ${(predictionMap.Hentai * 100).toFixed(1)}%`
+      );
+
+    console.log(`📊 NSFWjs Analysis Results:`, {
+      file: path.basename(imagePath),
+      isClean,
+      severity,
+      nsfwScore: `${(nsfwScore * 100).toFixed(1)}%`,
+      topPrediction: `${predictions[0].className}: ${(
+        predictions[0].probability * 100
+      ).toFixed(1)}%`,
+    });
+
+    return result;
+  } catch (error) {
+    console.error("NSFWjs analysis error:", error.message);
+
+    // Fallback to basic analysis
+    try {
+      return await basicImageAnalysis(imagePath);
+    } catch (fallbackError) {
+      console.error("Basic analysis fallback failed:", fallbackError.message);
+
+      // Ultimate fallback - be conservative
+      return {
+        isClean: false,
+        confidence: 0.5,
+        severity: "medium",
+        action: "review",
+        error: error.message,
+        fallbackUsed: true,
+        reason: "Unable to analyze image - blocking for safety",
+      };
+    }
+  }
+};
+
+/**
+ * Basic image analysis fallback when NSFWjs is not available
+ * @param {string} imagePath - Path to the image file
+ * @returns {Promise<object>} - Basic analysis result
+ */
+const basicImageAnalysis = async (imagePath) => {
   try {
     // Get image metadata and stats
     const metadata = await sharp(imagePath).metadata();
     const stats = await sharp(imagePath).stats();
 
-    // Check for common NSFW indicators in filename
+    // Check filename
     const filename = path.basename(imagePath).toLowerCase();
-    const nsfwTerms = [
-      "nude",
-      "naked",
-      "sex",
-      "porn",
-      "xxx",
-      "adult",
-      "nsfw",
-      "18+",
-      "onlyfans",
-      "hot",
-      "sexy",
-    ];
+    const filenameCheck = await checkImageFilename(filename);
 
-    const hasNSFWTerms = nsfwTerms.some((term) => filename.includes(term));
-
-    // Check image properties
+    // Check image properties for basic indicators
     const isLargeSkinToneArea = stats.channels.some((channel) => {
-      // Check for large areas of skin-tone like colors
       return channel.mean > 200 && channel.std < 50;
     });
 
-    // Calculate risk score based on multiple factors
+    // Calculate basic risk score
     let riskScore = 0;
-    if (hasNSFWTerms) riskScore += 0.5;
+    if (!filenameCheck.isClean) riskScore += 0.6;
     if (isLargeSkinToneArea) riskScore += 0.3;
 
-    // Additional checks based on image properties
+    // Check aspect ratio (extreme ratios might indicate inappropriate content)
     if (metadata.width && metadata.height) {
       const aspectRatio = metadata.width / metadata.height;
-      if (aspectRatio > 2 || aspectRatio < 0.5) riskScore += 0.2;
+      if (aspectRatio > 3 || aspectRatio < 0.3) riskScore += 0.2;
     }
 
-    const threshold = Number(process.env.NSFW_THRESHOLD || 0.6);
+    const threshold = parseFloat(process.env.NSFW_MEDIUM_THRESHOLD) || 0.5;
     const isClean = riskScore < threshold;
 
     return {
       isClean,
-      confidence: riskScore,
-      severity: riskScore > 0.8 ? "critical" : "high",
+      confidence: 0.6, // Lower confidence for basic analysis
+      severity: riskScore > 0.7 ? "high" : riskScore > 0.4 ? "medium" : "low",
+      action: isClean ? "allow" : "review",
+      nsfwScore: riskScore,
       predictions: [
         {
-          category: "nsfw_probability",
+          category: "basic_analysis",
           probability: riskScore,
+          percentage: `${(riskScore * 100).toFixed(1)}%`,
         },
       ],
+      details: {
+        filename: filename,
+        filenameCheck: filenameCheck,
+        basicAnalysis: true,
+        riskFactors: [],
+      },
     };
   } catch (error) {
-    console.error("Image analysis error:", error.message);
+    console.error("Basic image analysis error:", error.message);
     return {
-      isClean: true, // Default to true on error
-      confidence: 0.5,
+      isClean: false,
+      confidence: 0.3,
+      severity: "medium",
+      action: "review",
       error: error.message,
+      reason: "Unable to analyze image",
     };
   }
+};
+
+/**
+ * Check image filename for inappropriate terms
+ * @param {string} filename - Image filename
+ * @returns {Promise<object>} - Filename check result
+ */
+const checkImageFilename = async (filename) => {
+  const nsfwTerms = [
+    "nude",
+    "naked",
+    "sex",
+    "porn",
+    "xxx",
+    "adult",
+    "nsfw",
+    "18+",
+    "onlyfans",
+    "hot",
+    "sexy",
+    "erotic",
+    "explicit",
+    "mature",
+    "boobs",
+    "tits",
+    "ass",
+    "pussy",
+    "dick",
+    "cock",
+    "penis",
+    "vagina",
+    "nipple",
+    "breast",
+    "orgasm",
+    "cum",
+    "fuck",
+    "horny",
+    "kinky",
+    "fetish",
+    "bdsm",
+    "lesbian",
+    "gay",
+    "anal",
+    "oral",
+    "masturbate",
+    "dildo",
+    "vibrator",
+  ];
+
+  const hasNSFWTerms = nsfwTerms.some((term) => filename.includes(term));
+
+  if (hasNSFWTerms) {
+    return {
+      isClean: false,
+      severity: "high",
+      reason: "Filename contains inappropriate terms",
+      matchedTerms: nsfwTerms.filter((term) => filename.includes(term)),
+    };
+  }
+
+  return {
+    isClean: true,
+    severity: "none",
+  };
 };
 
 export const filterImageFilename = (filename) => {
@@ -1950,9 +2759,11 @@ export const filterUserContent = async (userData) => {
     confidence: 1.0,
   };
 
-  // Check username (only if provided)
+  // Check username (only if provided) - use lenient filtering for usernames
   if (userData.username) {
-    const usernameAnalysis = await analyzeTextContent(userData.username);
+    const usernameAnalysis = await analyzeTextContent(userData.username, {
+      contentType: "username",
+    });
     if (!usernameAnalysis.isClean) {
       results.isClean = false;
       results.violations.push({
@@ -1962,9 +2773,11 @@ export const filterUserContent = async (userData) => {
     }
   }
 
-  // Check display name (only if provided)
+  // Check display name (only if provided) - use lenient filtering for names
   if (userData.name) {
-    const nameAnalysis = await analyzeTextContent(userData.name);
+    const nameAnalysis = await analyzeTextContent(userData.name, {
+      contentType: "name",
+    });
     if (!nameAnalysis.isClean) {
       results.isClean = false;
       results.violations.push({

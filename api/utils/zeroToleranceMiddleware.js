@@ -8,7 +8,7 @@ import {
   analyzeImageContent,
   checkFileType,
   logContentViolation,
-} from "./contentFilter.js";
+} from "./aiContentFilter.js";
 
 // Whitelist of legitimate terms that should not be flagged
 const LEGITIMATE_TERMS = [
@@ -108,7 +108,7 @@ export const zeroTolerancePostFilter = async (req, res, next) => {
   try {
     const postData = {
       desc: req.body.desc,
-      img: req.file ? req.file.filename : null,
+      img: req.file ? req.file.buffer : null,
     };
 
     console.log("🛡️  Zero Tolerance Filter: Analyzing post content...");
@@ -126,28 +126,26 @@ export const zeroTolerancePostFilter = async (req, res, next) => {
       console.log("🚫 BLOCKED: Post contains inappropriate content");
       console.log("Violations:", filterResult.violations);
 
-      // Delete uploaded file if it exists and was flagged
-      if (
-        req.file &&
-        filterResult.violations?.some((v) => v.type.includes("image"))
-      ) {
-        try {
-          const fs = await import("fs");
-          const path = `./public/upload/${req.file.filename}`;
-          if (fs.existsSync(path)) {
-            fs.unlinkSync(path);
-            console.log("🗑️  Deleted inappropriate image file");
-          }
-        } catch (error) {
-          console.error("Error deleting file:", error);
-        }
+      // Check if any violations are critical (zero tolerance)
+      const hasCriticalViolation = filterResult.violations?.some(
+        (v) => v.severity === "critical"
+      );
+
+      // Only clear session for critical violations
+      if (hasCriticalViolation) {
+        res.clearCookie("accessToken", {
+          secure: true,
+          sameSite: "none",
+        });
       }
 
       return res.status(400).json({
         success: false,
-        message:
-          "Your post contains inappropriate content that violates our community guidelines. Please review your content and try again with appropriate material.",
+        message: hasCriticalViolation
+          ? "Your account has been logged out due to a critical content violation. An administrator will review your account."
+          : "Your post contains inappropriate content that violates our community guidelines. Please review your content and try again with appropriate material.",
         severity: filterResult.severity,
+        accountAction: hasCriticalViolation ? "logged_out" : "warning",
         violations:
           filterResult.violations?.map((v) => ({
             type: v.type,
@@ -165,7 +163,7 @@ export const zeroTolerancePostFilter = async (req, res, next) => {
             "Violence and threats",
             "Spam and commercial exploitation",
             "Drug-related content",
-            "Inappropriate images or videos",
+            "Inappropriate images",
           ],
         },
       });
@@ -298,87 +296,32 @@ export const zeroToleranceUserFilter = async (req, res, next) => {
  * Zero tolerance middleware for file uploads
  */
 export const zeroToleranceFileFilter = async (req, res, next) => {
+  if (!req.file) {
+    return next();
+  }
+
   try {
-    if (!req.file) {
-      return next();
-    }
+    console.log("🛡️  Zero Tolerance Filter: Checking file...");
 
-    console.log("🛡️  Zero Tolerance Filter: Analyzing uploaded file...");
-
-    // Check file type first
-    const fileTypeCheck = checkFileType(req.file.filename);
-    if (!fileTypeCheck.isAllowed) {
-      // Delete the uploaded file
-      try {
-        const fs = await import("fs");
-        const path = `./public/upload/${req.file.filename}`;
-        if (fs.existsSync(path)) {
-          fs.unlinkSync(path);
-          console.log("🗑️  Deleted dangerous file");
-        }
-      } catch (error) {
-        console.error("Error deleting file:", error);
-      }
-
+    // Check file type
+    const fileCheck = await checkFileType(req.file);
+    if (!fileCheck.isAllowed) {
+      console.log("🚫 File type not allowed:", fileCheck.reason);
       return res.status(400).json({
         success: false,
-        message: "File type not allowed",
-        reason: fileTypeCheck.reason,
-        severity: fileTypeCheck.severity,
+        message: "File type not allowed: " + fileCheck.reason,
       });
     }
 
-    // If it's an image, analyze the content
-    if (fileTypeCheck.type === "image") {
-      try {
-        const imagePath = `./public/upload/${req.file.filename}`;
-        const imageAnalysis = await analyzeImageContent(imagePath);
-
-        if (!imageAnalysis.isClean) {
-          // Delete the inappropriate image
-          try {
-            const fs = await import("fs");
-            if (fs.existsSync(imagePath)) {
-              fs.unlinkSync(imagePath);
-              console.log("🗑️  Deleted inappropriate image");
-            }
-          } catch (error) {
-            console.error("Error deleting image:", error);
-          }
-
-          await logContentViolation("image_upload", req.userId, imageAnalysis, {
-            filename: req.file.filename,
-            originalname: req.file.originalname,
-          });
-
-          return res.status(400).json({
-            success: false,
-            message:
-              "Image contains inappropriate content and cannot be uploaded",
-            severity: imageAnalysis.severity,
-            categories: imageAnalysis.categories,
-            policy:
-              "This platform has zero tolerance for 18+ or inappropriate visual content",
-          });
-        }
-      } catch (error) {
-        console.error("Image analysis error:", error);
-        // If analysis fails, delete the file as a precaution
-        try {
-          const fs = await import("fs");
-          const path = `./public/upload/${req.file.filename}`;
-          if (fs.existsSync(path)) {
-            fs.unlinkSync(path);
-            console.log("🗑️  Deleted file due to analysis failure");
-          }
-        } catch (deleteError) {
-          console.error("Error deleting file:", deleteError);
-        }
-
-        return res.status(500).json({
+    // If it's an image, analyze content
+    if (req.file.mimetype.startsWith("image/")) {
+      const imageAnalysis = await analyzeImageContent(req.file.buffer);
+      if (!imageAnalysis.isClean) {
+        console.log("🚫 Image content violation:", imageAnalysis.reason);
+        return res.status(400).json({
           success: false,
-          message:
-            "Unable to verify image safety. Upload blocked for security.",
+          message: "Image content not allowed: " + imageAnalysis.reason,
+          severity: imageAnalysis.severity,
         });
       }
     }
@@ -389,8 +332,7 @@ export const zeroToleranceFileFilter = async (req, res, next) => {
     console.error("Zero tolerance file filter error:", error);
     return res.status(500).json({
       success: false,
-      message:
-        "Content moderation system error. File upload blocked for safety.",
+      message: "File validation error. Upload blocked for safety.",
     });
   }
 };

@@ -1,55 +1,72 @@
 import mongoose from "mongoose";
 
-const userSchema = new mongoose.Schema(
+const UserSchema = new mongoose.Schema(
   {
     username: {
       type: String,
       required: true,
       unique: true,
-      maxlength: 45,
     },
     email: {
       type: String,
       required: true,
       unique: true,
-      maxlength: 100, // Increased for longer email addresses
     },
     password: {
       type: String,
       required: true,
-      maxlength: 200,
     },
     name: {
       type: String,
       required: true,
-      maxlength: 45,
     },
     coverPic: {
       type: String,
-      maxlength: 500, // Increased for Cloudinary URLs
-      default: null,
+      default: "",
     },
     profilePic: {
       type: String,
-      maxlength: 500, // Increased for Cloudinary URLs
-      default: null,
+      default: "",
     },
     city: {
       type: String,
-      maxlength: 45,
-      default: null,
+      default: "",
     },
     website: {
       type: String,
-      maxlength: 200, // Increased for full URLs
-      default: null,
+      default: "",
+    },
+    trustScore: {
+      type: Number,
+      default: 100,
+      min: 0,
+      max: 100,
+    },
+    isBanned: {
+      type: Boolean,
+      default: false,
+    },
+    banReason: {
+      type: String,
+      default: "",
+    },
+    trustHistory: [
+      {
+        score: Number,
+        reason: String,
+        violationType: String,
+        timestamp: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
+    isAdmin: {
+      type: Boolean,
+      default: false,
     },
   },
-  {
-    timestamps: true, // This will add createdAt and updatedAt fields
-  }
+  { timestamps: true }
 );
 
-const User = mongoose.model("User", userSchema);
-
-export default User;
+export default mongoose.model("User", UserSchema);

@@ -7,9 +7,7 @@ import AddIcon from "@mui/icons-material/Add";
 import CloseIcon from "@mui/icons-material/Close";
 import TextFieldsIcon from "@mui/icons-material/TextFields";
 import PhotoCameraIcon from "@mui/icons-material/PhotoCamera";
-import VideocamIcon from "@mui/icons-material/Videocam";
 import DeleteIcon from "@mui/icons-material/Delete";
-import MoreVertIcon from "@mui/icons-material/MoreVert";
 import toast from "react-hot-toast";
 import Avatar from "../avatar/Avatar";
 
@@ -101,30 +99,13 @@ const Stories = () => {
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      // Check file type
-      const isImage = file.type.startsWith('image/');
-      const isVideo = file.type.startsWith('video/');
-      
-      if (!isImage && !isVideo) {
-        toast.error("Please select an image or video file");
+      // Only allow images - no videos
+      if (!file.type.startsWith('image/')) {
+        toast.error("Only image files are allowed for stories");
         return;
       }
 
-      // Check video duration for videos
-      if (isVideo) {
-        const video = document.createElement('video');
-        video.preload = 'metadata';
-        video.onloadedmetadata = () => {
-          if (video.duration > 30) {
-            toast.error("Video must be 30 seconds or less");
-            return;
-          }
-          setSelectedFile({ file, duration: video.duration });
-        };
-        video.src = URL.createObjectURL(file);
-      } else {
-        setSelectedFile({ file });
-      }
+      setSelectedFile({ file });
     }
   };
 
@@ -134,8 +115,8 @@ const Stories = () => {
       return;
     }
 
-    if ((storyType === "image" || storyType === "video") && !selectedFile) {
-      toast.error(`Please select a ${storyType} file`);
+    if (storyType === "image" && !selectedFile) {
+      toast.error("Please select an image file");
       return;
     }
 
@@ -143,19 +124,14 @@ const Stories = () => {
 
     try {
       let mediaFilename = null;
-      let videoDuration = null;
 
-      // Upload file if it's image or video
+      // Upload file if it's an image
       if (selectedFile) {
         const formData = new FormData();
         formData.append("file", selectedFile.file);
 
         const uploadRes = await makeRequest.post("/upload", formData);
         mediaFilename = uploadRes.data;
-        
-        if (storyType === "video") {
-          videoDuration = selectedFile.duration;
-        }
       }
 
       // Create story
@@ -168,9 +144,6 @@ const Stories = () => {
         storyData.backgroundColor = backgroundColor;
       } else {
         storyData.media = mediaFilename;
-        if (videoDuration) {
-          storyData.videoDuration = videoDuration;
-        }
       }
 
       createStoryMutation.mutate(storyData);
@@ -230,7 +203,7 @@ const Stories = () => {
     if (story.type === "text") {
       return (
         <div 
-          className="text-story"
+          className="story-text" 
           style={{ backgroundColor: story.backgroundColor }}
         >
           <p>{story.text}</p>
@@ -246,19 +219,91 @@ const Stories = () => {
           className="story-media"
         />
       );
-    } else if (story.type === "video") {
-      // Handle both Cloudinary URLs and local paths
-      const videoSrc = story.media.startsWith('http') ? story.media : "/upload/" + story.media;
-      return (
-        <video 
-          src={videoSrc} 
-          className="story-media"
-          autoPlay
-          muted
-          loop
-        />
-      );
     }
+    // Return null for unsupported story types
+    return null;
+  };
+
+  const renderStoryViewer = () => {
+    if (!showStoryViewer || !currentStoryUser) return null;
+
+    const currentStory = currentStoryUser.stories[currentStoryIndex];
+    const isOwner = isCurrentUserStory();
+
+    return (
+      <div className="story-viewer-overlay" onClick={() => setShowStoryViewer(false)}>
+        <div className="story-viewer" onClick={(e) => e.stopPropagation()}>
+          <div className="story-viewer-header">
+            <div className="user-info">
+              <Avatar user={currentStoryUser} size={40} />
+              <div className="user-details">
+                <span className="username">{currentStoryUser.name}</span>
+                <span className="timestamp">{formatTimeAgo(currentStory.createdAt)}</span>
+              </div>
+            </div>
+            <div className="story-actions">
+              {isOwner && (
+                <button 
+                  className="delete-button"
+                  onClick={() => setShowDeleteConfirm(true)}
+                >
+                  <DeleteIcon />
+                </button>
+              )}
+              <button className="close-button" onClick={() => setShowStoryViewer(false)}>
+                <CloseIcon />
+              </button>
+            </div>
+          </div>
+
+          <div className="story-content">
+            <div className="story-progress">
+              {currentStoryUser.stories.map((_, index) => (
+                <div 
+                  key={index} 
+                  className={`progress-bar ${index === currentStoryIndex ? 'active' : ''} ${index < currentStoryIndex ? 'completed' : ''}`}
+                />
+              ))}
+            </div>
+
+            {renderStoryContent(currentStory)}
+
+            {currentStoryIndex > 0 && (
+              <button className="nav-button prev" onClick={(e) => {
+                e.stopPropagation();
+                prevStory();
+              }}>
+                ‹
+              </button>
+            )}
+            {currentStoryIndex < currentStoryUser.stories.length - 1 && (
+              <button className="nav-button next" onClick={(e) => {
+                e.stopPropagation();
+                nextStory();
+              }}>
+                ›
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Delete Confirmation Modal */}
+        {showDeleteConfirm && (
+          <div className="delete-confirm-modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Delete Story?</h3>
+            <p>This action cannot be undone.</p>
+            <div className="modal-actions">
+              <button className="cancel-btn" onClick={() => setShowDeleteConfirm(false)}>
+                Cancel
+              </button>
+              <button className="delete-btn" onClick={handleDeleteStory}>
+                Delete
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -273,7 +318,7 @@ const Stories = () => {
         </div>
       </div>
 
-      {/* Existing Stories */}
+      {/* Story Cards */}
       {error ? (
         <div className="story error-story">
           Something went wrong
@@ -284,8 +329,6 @@ const Stories = () => {
             <div className="story-overlay">
               <div className="story-header">
                 <div className="user-avatar loading"></div>
-              </div>
-              <div className="story-footer">
                 <div className="user-name loading"></div>
               </div>
             </div>
@@ -293,27 +336,25 @@ const Stories = () => {
         ))
       ) : (
         data?.map((userStories) => (
-          <div 
-            className={`story ${userStories.hasUnseenStories ? 'unseen' : 'seen'}`} 
+          <div
+            className={`story ${userStories.stories.some(s => !s.views?.includes(currentUser.id)) ? 'unseen' : 'seen'}`}
             key={userStories.userId}
             onClick={() => openStoryViewer(userStories)}
           >
-            {/* Show preview of latest story */}
             {renderStoryContent(userStories.stories[0])}
-            
             <div className="story-overlay">
               <div className="story-header">
                 <Avatar 
-                  src={userStories.profilePic} 
-                  name={userStories.name} 
-                  size="medium" 
-                  className="user-avatar"
+                  user={{
+                    name: userStories.name,
+                    profilePic: userStories.profilePic
+                  }}
+                  size="small"
                 />
-                <div className={`story-status ${userStories.hasUnseenStories ? 'unseen' : 'seen'}`}></div>
+                <div className="story-status"></div>
               </div>
-
               <div className="story-footer">
-                <div className="user-name">{userStories.name || 'Anonymous'}</div>
+                <div className="user-name">{userStories.name}</div>
                 <div className="story-time">
                   {formatTimeAgo(userStories.stories[0].createdAt)}
                 </div>
@@ -323,7 +364,7 @@ const Stories = () => {
         ))
       )}
 
-      {/* Create Story Modal */}
+      {/* Story Creation Modal */}
       {showCreateModal && (
         <div className="story-modal-overlay" onClick={() => setShowCreateModal(false)}>
           <div className="story-modal" onClick={(e) => e.stopPropagation()}>
@@ -349,13 +390,6 @@ const Stories = () => {
               >
                 <PhotoCameraIcon />
                 Image
-              </button>
-              <button 
-                className={storyType === "video" ? "active" : ""}
-                onClick={() => setStoryType("video")}
-              >
-                <VideocamIcon />
-                Video
               </button>
             </div>
 
@@ -388,11 +422,11 @@ const Stories = () => {
               </div>
             )}
 
-            {(storyType === "image" || storyType === "video") && (
+            {storyType === "image" && (
               <div className="media-story-creator">
                 <input
                   type="file"
-                  accept={storyType === "image" ? "image/*" : "video/*"}
+                  accept="image/*"
                   onChange={handleFileChange}
                   style={{ display: "none" }}
                   id="story-file-input"
@@ -400,23 +434,15 @@ const Stories = () => {
                 <label htmlFor="story-file-input" className="file-upload-area">
                   {selectedFile ? (
                     <div className="file-preview">
-                      {storyType === "image" ? (
-                        <img 
-                          src={URL.createObjectURL(selectedFile.file)} 
-                          alt="Preview"
-                        />
-                      ) : (
-                        <video 
-                          src={URL.createObjectURL(selectedFile.file)}
-                          controls
-                        />
-                      )}
+                      <img 
+                        src={URL.createObjectURL(selectedFile.file)} 
+                        alt="Preview"
+                      />
                     </div>
                   ) : (
                     <div className="upload-placeholder">
-                      {storyType === "image" ? <PhotoCameraIcon /> : <VideocamIcon />}
-                      <p>Click to select {storyType}</p>
-                      {storyType === "video" && <small>Max 30 seconds</small>}
+                      <PhotoCameraIcon />
+                      <p>Click to select image</p>
                     </div>
                   )}
                 </label>
@@ -442,103 +468,8 @@ const Stories = () => {
         </div>
       )}
 
-      {/* Story Viewer Modal */}
-      {showStoryViewer && currentStoryUser && (
-        <div className="story-viewer-overlay" onClick={() => setShowStoryViewer(false)}>
-          <div className="story-viewer" onClick={(e) => e.stopPropagation()}>
-            <CloseIcon 
-              className="close-viewer" 
-              onClick={() => setShowStoryViewer(false)}
-            />
-            
-            {/* Delete button for own stories */}
-            {isCurrentUserStory() && (
-              <div className="story-actions">
-                <MoreVertIcon 
-                  className="story-menu-icon"
-                  onClick={() => setShowDeleteConfirm(true)}
-                />
-              </div>
-            )}
-            
-            <div className="story-progress-bars">
-              {currentStoryUser.stories.map((_, index) => (
-                <div 
-                  key={index}
-                  className={`progress-bar ${index <= currentStoryIndex ? 'completed' : ''}`}
-                />
-              ))}
-            </div>
-
-            <div className="story-header">
-              <Avatar 
-                src={currentStoryUser.profilePic} 
-                name={currentStoryUser.name} 
-                size="medium" 
-                className="user-avatar"
-              />
-              <div className="user-info">
-                <span className="user-name">{currentStoryUser.name}</span>
-                <span className="story-time">
-                  {formatTimeAgo(currentStoryUser.stories[currentStoryIndex].createdAt)}
-                </span>
-              </div>
-            </div>
-
-            <div className="story-content">
-              {renderStoryContent(currentStoryUser.stories[currentStoryIndex])}
-            </div>
-
-            <div className="story-navigation">
-              {currentStoryIndex > 0 && (
-                <button className="nav-btn prev" onClick={prevStory}>
-                  ‹
-                </button>
-              )}
-              <button className="nav-btn next" onClick={nextStory}>
-                {currentStoryIndex < currentStoryUser.stories.length - 1 ? '›' : '✓'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Delete Confirmation Modal */}
-      {showDeleteConfirm && (
-        <div className="story-modal-overlay" onClick={() => setShowDeleteConfirm(false)}>
-          <div className="delete-confirm-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>Delete Story</h3>
-              <CloseIcon 
-                className="close-icon" 
-                onClick={() => setShowDeleteConfirm(false)}
-              />
-            </div>
-            
-            <div className="modal-content">
-              <DeleteIcon className="delete-warning-icon" />
-              <p>Are you sure you want to delete this story?</p>
-              <small>This action cannot be undone.</small>
-            </div>
-            
-            <div className="modal-actions">
-              <button 
-                className="cancel-btn"
-                onClick={() => setShowDeleteConfirm(false)}
-              >
-                Cancel
-              </button>
-              <button 
-                className="delete-btn"
-                onClick={handleDeleteStory}
-                disabled={deleteStoryMutation.isLoading}
-              >
-                {deleteStoryMutation.isLoading ? "Deleting..." : "Delete"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Story Viewer */}
+      {renderStoryViewer()}
     </div>
   );
 };

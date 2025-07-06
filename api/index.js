@@ -1,5 +1,8 @@
 import express from "express";
+import { createServer } from "http";
+import { Server } from "socket.io";
 const app = express();
+const server = createServer(app);
 import authRoutes from "./routes/auth.js";
 import userRoutes from "./routes/users.js";
 import postRoutes from "./routes/posts.js";
@@ -9,39 +12,235 @@ import storyRoutes from "./routes/stories.js";
 import relationshipRoutes from "./routes/relationships.js";
 import adminRoutes from "./routes/admin.js";
 import notificationRoutes from "./routes/notifications.js";
+import messageRoutes from "./routes/messages.js";
 import cors from "cors";
 import multer from "multer";
 import cookieParser from "cookie-parser";
 import jwt from "jsonwebtoken";
-import {
-  filterImageFilename,
-  checkFileType,
-  logContentViolation,
-} from "./utils/contentFilter.js";
+import { checkFileType, logContentViolation } from "./utils/aiContentFilter.js";
 import { isUserBanned } from "./utils/adminDashboard.js";
 import {
   timeLimitMiddleware,
   markOffline,
 } from "./utils/timeLimitMiddleware.js";
 import { uploadToCloudinary } from "./utils/uploadToCloudinary.js";
-import connectDB from "./config/database.js";
+import { mongoose } from "./connect.js";
+import { canMessage } from "./controllers/message.js";
+import { filterUserContent } from "./utils/aiContentFilter.js";
+import Message from "./models/Message.js";
 
-// Connect to MongoDB Atlas
-connectDB();
+// MongoDB connection is handled in connect.js
+
+// Initialize Socket.IO
+const io = new Server(server, {
+  cors: {
+    origin: ["http://localhost:3000", "http://localhost:3001"],
+    credentials: true,
+  },
+});
+
+// Store connected users
+const connectedUsers = new Map();
+
+// Socket.IO middleware for authentication
+io.use((socket, next) => {
+  const token = socket.handshake.auth.token;
+  if (!token) {
+    return next(new Error("Authentication error"));
+  }
+
+  jwt.verify(token, process.env.JWT_SECRET || "secretkey", (err, userInfo) => {
+    if (err) {
+      return next(new Error("Authentication error"));
+    }
+    socket.userId = userInfo.id;
+    next();
+  });
+});
+
+// Socket.IO connection handling
+io.on("connection", (socket) => {
+  console.log(`🔌 User ${socket.userId} connected`);
+
+  // Store user connection
+  connectedUsers.set(socket.userId, socket.id);
+
+  // Join user to their own room
+  socket.join(socket.userId);
+
+  // Handle sending messages
+  socket.on("send_message", async (data) => {
+    try {
+      const { receiverId, content } = data;
+
+      // Check if sender can message receiver
+      const canSendMessage = await canMessage(socket.userId, receiverId);
+      if (!canSendMessage) {
+        socket.emit("message_error", {
+          error: "You can only message users you follow",
+        });
+        return;
+      }
+
+      // Filter content
+      const filteredContent = await filterUserContent(
+        content.trim(),
+        "message"
+      );
+      if (filteredContent.blocked) {
+        socket.emit("message_error", {
+          error: "Message contains inappropriate content",
+          reason: filteredContent.reason,
+        });
+        return;
+      }
+
+      // Create and save message
+      const message = new Message({
+        senderId: socket.userId,
+        receiverId,
+        content: filteredContent.content,
+        messageType: "text",
+      });
+
+      const savedMessage = await message.save();
+      const populatedMessage = await Message.findById(savedMessage._id)
+        .populate("senderId", "name username profilePic")
+        .populate("receiverId", "name username profilePic");
+
+      // Send to sender
+      socket.emit("message_sent", populatedMessage);
+
+      // Send to receiver if online
+      const receiverSocketId = connectedUsers.get(receiverId);
+      if (receiverSocketId) {
+        io.to(receiverSocketId).emit("new_message", populatedMessage);
+      }
+
+      console.log(`💬 Message sent from ${socket.userId} to ${receiverId}`);
+    } catch (error) {
+      console.error("Socket message error:", error);
+      socket.emit("message_error", {
+        error: "Failed to send message",
+      });
+    }
+  });
+
+  // Handle typing indicators
+  socket.on("typing", (data) => {
+    const { receiverId } = data;
+    const receiverSocketId = connectedUsers.get(receiverId);
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("user_typing", {
+        userId: socket.userId,
+      });
+    }
+  });
+
+  socket.on("stop_typing", (data) => {
+    const { receiverId } = data;
+    const receiverSocketId = connectedUsers.get(receiverId);
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("user_stop_typing", {
+        userId: socket.userId,
+      });
+    }
+  });
+
+  // Handle disconnect
+  socket.on("disconnect", () => {
+    console.log(`🔌 User ${socket.userId} disconnected`);
+    connectedUsers.delete(socket.userId);
+  });
+});
 
 //middlewares
 app.use((req, res, next) => {
   res.header("Access-Control-Allow-Credentials", true);
   next();
 });
-app.use(express.json());
+
+// Configure express to handle file uploads
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
+
+// Configure CORS
 app.use(
   cors({
     origin: ["http://localhost:3000", "http://localhost:3001"],
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+    exposedHeaders: ["Content-Range", "X-Content-Range"],
   })
 );
+
 app.use(cookieParser());
+
+// Configure file upload route with authentication
+app.post("/api/upload", async (req, res) => {
+  const token = req.cookies.accessToken;
+  if (!token) return res.status(401).json("Not authenticated!");
+
+  jwt.verify(
+    token,
+    process.env.JWT_SECRET || "secretkey",
+    async (err, userInfo) => {
+      if (err) return res.status(403).json("Token is not valid!");
+
+      try {
+        const {
+          file,
+          transform_width,
+          transform_height,
+          transform_crop,
+          transform_gravity,
+        } = req.body;
+
+        if (!file) {
+          return res.status(400).json({ error: "No file provided" });
+        }
+
+        // Apply transformations if provided
+        const transformations = {
+          width: transform_width,
+          height: transform_height,
+          crop: transform_crop,
+          gravity: transform_gravity,
+        };
+
+        const uploadedUrl = await uploadToCloudinary(file, transformations);
+        res.status(200).json(uploadedUrl);
+      } catch (error) {
+        console.error("Upload error:", error);
+        res.status(500).json({ error: "Failed to upload file" });
+      }
+    }
+  );
+});
+
+// Add error handling middleware
+app.use((err, req, res, next) => {
+  console.error("Global error handler:", {
+    error: err.message,
+    stack: err.stack,
+    type: err.type,
+    status: err.status,
+  });
+
+  if (err instanceof SyntaxError && err.status === 400 && "body" in err) {
+    return res.status(400).json({ message: "Invalid JSON" });
+  }
+  if (err.type === "entity.too.large") {
+    return res.status(413).json({ message: "Request entity too large" });
+  }
+  if (err instanceof multer.MulterError) {
+    return res
+      .status(400)
+      .json({ message: `File upload error: ${err.message}` });
+  }
+  next(err);
+});
 
 // Ban checking middleware for protected routes
 const banCheckMiddleware = (req, res, next) => {
@@ -58,134 +257,41 @@ const banCheckMiddleware = (req, res, next) => {
           "Your account has been suspended due to violations of our community guidelines. Please contact support if you believe this is an error.",
       });
     }
-
     next();
   });
 };
 
-// Configure multer for memory storage (Cloudinary upload)
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB limit
-  },
-  fileFilter: function (req, file, cb) {
-    // 🚫 CONTENT FILTERATION - Check file type and filename
-    const fileTypeCheck = checkFileType(file.originalname);
-    if (!fileTypeCheck.isAllowed) {
-      console.warn("🚫 File upload blocked:", fileTypeCheck.reason);
-      return cb(new Error(fileTypeCheck.reason), false);
-    }
-
-    const filenameCheck = filterImageFilename(file.originalname);
-    if (!filenameCheck.isClean) {
-      console.warn("🚫 File upload blocked:", filenameCheck.reason);
-      logContentViolation(
-        "file_upload",
-        req.user?.id || "unknown",
-        filenameCheck,
-        { filename: file.originalname }
-      );
-      return cb(new Error(filenameCheck.reason), false);
-    }
-
-    cb(null, true);
-  },
-});
-
-app.post(
-  "/api/upload",
-  banCheckMiddleware,
-  upload.single("file"),
-  async (req, res) => {
-    try {
-      const file = req.file;
-      if (!file) {
-        return res.status(400).json({ error: "No file uploaded" });
-      }
-
-      // Upload to Cloudinary
-      const cloudinaryResult = await uploadToCloudinary(
-        file.buffer,
-        file.originalname,
-        "posivibe"
-      );
-
-      console.log(
-        "✅ File uploaded successfully to Cloudinary:",
-        cloudinaryResult.public_id
-      );
-
-      // Return the secure URL for the frontend to use
-      res.status(200).json({
-        url: cloudinaryResult.secure_url,
-        public_id: cloudinaryResult.public_id,
-        format: cloudinaryResult.format,
-        bytes: cloudinaryResult.bytes,
-      });
-    } catch (error) {
-      console.error("File upload error:", error);
-      res.status(400).json({
-        error: "Upload failed",
-        message: error.message,
-      });
-    }
-  }
+// Apply ban check to all protected routes
+app.use(
+  ["/api/posts", "/api/comments", "/api/likes", "/api/stories"],
+  banCheckMiddleware
 );
 
-// Error handling for multer
-app.use((error, req, res, next) => {
-  if (error instanceof multer.MulterError) {
-    if (error.code === "LIMIT_FILE_SIZE") {
-      return res.status(400).json({
-        error: "File too large",
-        message: "File size must be less than 10MB",
-      });
-    }
-  }
+// Apply time limit middleware to all protected routes
+app.use(
+  ["/api/posts", "/api/comments", "/api/likes", "/api/stories"],
+  timeLimitMiddleware
+);
 
-  if (error.message) {
-    return res.status(400).json({
-      error: "File upload failed",
-      message: error.message,
-    });
-  }
-
-  next(error);
-});
-
-// Add these lines after other middleware setup but before routes
-app.use(timeLimitMiddleware);
-app.use("/api/auth/logout", markOffline);
-
-// Clear session endpoint for debugging
-app.post("/api/clear-session", (req, res) => {
-  res.clearCookie("accessToken", {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
-  });
-  console.log("🧹 Session cleared for debugging");
-  res.json({ message: "Session cleared" });
-});
-
+// Routes
 app.use("/api/auth", authRoutes);
-app.use("/api/users", banCheckMiddleware, userRoutes);
-app.use("/api/posts", banCheckMiddleware, postRoutes);
-app.use("/api/comments", banCheckMiddleware, commentRoutes);
-app.use("/api/likes", banCheckMiddleware, likeRoutes);
-app.use("/api/relationships", banCheckMiddleware, relationshipRoutes);
-app.use("/api/stories", banCheckMiddleware, storyRoutes);
-app.use("/api/notifications", banCheckMiddleware, notificationRoutes);
+app.use("/api/users", userRoutes);
+app.use("/api/posts", postRoutes);
+app.use("/api/comments", commentRoutes);
+app.use("/api/likes", likeRoutes);
+app.use("/api/stories", storyRoutes);
+app.use("/api/relationships", relationshipRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/notifications", notificationRoutes);
+app.use("/api/messages", messageRoutes);
 
-app.listen(8800, () => {
-  console.log("API working!");
-  console.log(
-    "🛡️ Content filteration system active - blocking inappropriate content"
-  );
-  console.log(
-    "🔨 User ban system active - suspended users cannot access protected routes"
-  );
-  console.log("👮 Admin dashboard available at /api/admin/dashboard");
+// Handle 404
+app.use((req, res) => {
+  res.status(404).json({ message: "Not found" });
+});
+
+// Start server
+const PORT = process.env.PORT || 8800;
+server.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
 });

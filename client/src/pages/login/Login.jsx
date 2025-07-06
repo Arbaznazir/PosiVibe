@@ -156,9 +156,6 @@ const Login = () => {
                   <span className="checkmark"></span>
                   Remember me
                 </label>
-                <Link to="/forgot-password" className="forgot-link">
-                  Forgot Password?
-                </Link>
               </div>
 
               <button 
@@ -182,31 +179,23 @@ const Login = () => {
             </div>
 
             <div className="social-login">
-              <button className="social-btn google">
+              <button className="social-btn google" disabled>
                 <Google className="social-icon" />
                 Google
               </button>
-              <button className="social-btn facebook">
+              <button className="social-btn facebook" disabled>
                 <Facebook className="social-icon" />
                 Facebook
               </button>
-              <button className="social-btn twitter">
+              <button className="social-btn twitter" disabled>
                 <Twitter className="social-icon" />
                 Twitter
               </button>
             </div>
 
-            <div className="demo-credentials">
-              <div className="demo-header">Demo Accounts:</div>
-              <div className="demo-accounts">
-                <div className="demo-account">
-                  <strong>User:</strong> arbaznazir4 / password123
-                </div>
-                <div className="demo-account">
-                  <strong>Test:</strong> testuser / password
-                </div>
-              </div>
-            </div>
+            <p style={{ textAlign: 'center', fontSize: '12px', color: 'var(--text-color-secondary)', marginTop: '10px' }}>
+              Social login coming soon
+            </p>
           </div>
         </div>
       </div>

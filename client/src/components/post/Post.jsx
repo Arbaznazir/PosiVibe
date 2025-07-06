@@ -38,16 +38,23 @@ const Post = ({ post }) => {
     };
   }, []);
 
-  const { isLoading, data } = useQuery(["likes", post.id], () =>
-    makeRequest.get("/likes?postId=" + post.id).then((res) => {
+  // Use post.id safely with optional chaining
+  const { isLoading, data } = useQuery(["likes", post?.id || "unknown"], () => {
+    if (!post?.id) {
+      return Promise.resolve([]);
+    }
+    return makeRequest.get("/likes?postId=" + post.id).then((res) => {
       return res.data;
-    })
-  );
+    });
+  }, {
+    enabled: !!post?.id, // Only run query if post and post.id exist
+  });
 
   const queryClient = useQueryClient();
 
   const mutation = useMutation(
     (liked) => {
+      if (!post?.id) return Promise.reject('No post ID');
       if (liked) {
         return makeRequest.delete("/likes?postId=" + post.id);
       } else {
@@ -57,14 +64,14 @@ const Post = ({ post }) => {
     {
       onSuccess: () => {
         // Invalidate specific post likes query for immediate update
-        queryClient.invalidateQueries(["likes", post.id]);
+        queryClient.invalidateQueries(["likes", post?.id]);
         // Also invalidate all likes queries to update other posts if needed
         queryClient.invalidateQueries(["likes"]);
       },
       onError: (error) => {
         console.error("Like mutation error:", error);
         // Still invalidate to refresh the current state
-        queryClient.invalidateQueries(["likes", post.id]);
+        queryClient.invalidateQueries(["likes", post?.id]);
         queryClient.invalidateQueries(["likes"]);
       },
     }
@@ -72,6 +79,7 @@ const Post = ({ post }) => {
 
   const deleteMutation = useMutation(
     (postId) => {
+      if (!postId) return Promise.reject('No post ID');
       return makeRequest.delete("/posts/" + postId);
     },
     {
@@ -82,6 +90,8 @@ const Post = ({ post }) => {
   );
 
   const handleLike = () => {
+    if (!post?.id || !data) return;
+    
     const userId = currentUser?.id || currentUser?._id;
     if (!userId) {
       console.error("No user ID found");
@@ -99,6 +109,7 @@ const Post = ({ post }) => {
   };
 
   const handleDelete = () => {
+    if (!post?.id) return;
     if (window.confirm("Are you sure you want to delete this post?")) {
     deleteMutation.mutate(post.id);
       setMenuOpen(false);
@@ -112,10 +123,12 @@ const Post = ({ post }) => {
   };
 
   const handleShare = () => {
+    if (!post) return;
+    
     if (navigator.share) {
       navigator.share({
-        title: `${post.name}'s Post`,
-        text: post.desc,
+        title: `${post?.name}'s Post`,
+        text: post?.desc || '',
         url: window.location.href,
       });
     } else {
@@ -127,7 +140,20 @@ const Post = ({ post }) => {
 
   const userId = currentUser?.id || currentUser?._id;
   const userHasLiked = data && userId && (data.includes(userId.toString()) || data.includes(userId));
-  const isOwnPost = userId && post.userId.toString() === userId.toString();
+  const isOwnPost = userId && post?.userId && (post.userId.toString() === userId.toString());
+
+  // Return error state if post is null or undefined (after all hooks)
+  if (!post) {
+    return (
+      <div className="post error">
+        <div className="container">
+          <div className="error-content">
+            <p>⚠️ Unable to load post data</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="post">
@@ -135,22 +161,22 @@ const Post = ({ post }) => {
         <div className="user">
           <div className="userInfo">
             <Avatar 
-              src={post.profilePic} 
-              name={post.name} 
-              size="medium" 
+              src={post?.profilePic} 
+              name={post?.name} 
+              size="small" 
               className="avatar"
               showOnline={true}
             />
             <div className="details">
               <Link
-                to={`/profile/${post.userId}`}
+                to={`/profile/${post?.userId}`}
                 className="name"
               >
-                {post.name}
+                {post?.name}
               </Link>
               <span className="date">
                 <AccessTimeIcon className="time-icon" />
-                {moment(post.createdAt).fromNow()}
+                {moment(post?.createdAt).fromNow()}
               </span>
             </div>
           </div>
@@ -199,10 +225,10 @@ const Post = ({ post }) => {
         </div>
 
         <div className="content">
-          {post.desc && (
+          {post?.desc && (
             <div className="description">{post.desc}</div>
           )}
-          {post.img && (
+          {post?.img && (
             <img 
               src={post.img.startsWith('http') ? post.img : "/upload/" + post.img} 
               alt="Post content" 
@@ -250,7 +276,7 @@ const Post = ({ post }) => {
           </div>
         </div>
 
-        {commentOpen && <Comments postId={post.id} />}
+        {commentOpen && <Comments postId={post?.id} />}
       </div>
     </div>
   );

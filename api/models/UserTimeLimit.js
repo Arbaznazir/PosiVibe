@@ -36,13 +36,27 @@ UserTimeLimitSchema.methods.shouldResetTime = function () {
   const now = new Date();
   const lastReset = new Date(this.lastReset);
 
-  // Reset if it's a different day or if it's been more than 24 hours
-  return (
-    now.getDate() !== lastReset.getDate() ||
-    now.getMonth() !== lastReset.getMonth() ||
-    now.getFullYear() !== lastReset.getFullYear() ||
-    now - lastReset >= 24 * 60 * 60 * 1000
-  );
+  // Create midnight of today
+  const todayMidnight = new Date(now);
+  todayMidnight.setHours(0, 0, 0, 0);
+
+  // Create midnight of last reset day
+  const lastResetMidnight = new Date(lastReset);
+  lastResetMidnight.setHours(0, 0, 0, 0);
+
+  // Reset if:
+  // 1. It's a different calendar day (more accurate than checking date/month/year separately)
+  // 2. OR if more than 24 hours have passed since last reset (safety check)
+  const isDifferentDay =
+    todayMidnight.getTime() !== lastResetMidnight.getTime();
+  const isMoreThan24Hours =
+    now.getTime() - lastReset.getTime() >= 24 * 60 * 60 * 1000;
+
+  // Additional safety: don't reset if less than 1 hour has passed (prevents rapid resets)
+  const isAtLeastOneHour =
+    now.getTime() - lastReset.getTime() >= 60 * 60 * 1000;
+
+  return (isDifferentDay || isMoreThan24Hours) && isAtLeastOneHour;
 };
 
 // Get remaining time in milliseconds
@@ -89,26 +103,36 @@ export const getUserTimeLimit = async (userId) => {
       await timeLimit.save();
     }
 
-    // Check if we should reset the time
-    if (timeLimit.shouldResetTime()) {
+    const now = new Date();
+    const lastResetDate = new Date(timeLimit.lastReset);
+    const todayMidnight = new Date(now);
+    todayMidnight.setHours(0, 0, 0, 0);
+    const lastResetMidnight = new Date(lastResetDate);
+    lastResetMidnight.setHours(0, 0, 0, 0);
+
+    // Only reset if it's a new day AND we haven't already reset today
+    if (
+      todayMidnight.getTime() !== lastResetMidnight.getTime() &&
+      now.getTime() - lastResetDate.getTime() >= 60 * 60 * 1000
+    ) {
       timeLimit.timeSpentToday = 0;
-      timeLimit.lastReset = new Date();
+      timeLimit.lastReset = now;
       await timeLimit.save();
     }
 
     // Update last active time
-    timeLimit.lastActive = new Date();
+    timeLimit.lastActive = now;
     await timeLimit.save();
 
     const DAILY_LIMIT = 2.5 * 60 * 60 * 1000; // 2.5 hours in milliseconds
     const remaining = timeLimit.getRemainingTime();
-    const resetTime = new Date(timeLimit.lastReset);
-    resetTime.setHours(24, 0, 0, 0); // Next midnight
+    const nextReset = new Date(todayMidnight);
+    nextReset.setDate(nextReset.getDate() + 1); // Next midnight
 
     return {
       remaining,
       dailyLimit: DAILY_LIMIT,
-      resetTime: resetTime.toISOString(),
+      resetTime: nextReset.toISOString(),
       timeSpentToday: timeLimit.timeSpentToday,
     };
   } catch (err) {

@@ -12,10 +12,7 @@ const lastUpdates = new Map();
 export const timeLimitMiddleware = async (req, res, next) => {
   try {
     // Skip time tracking for non-authenticated routes and non-GET/POST requests
-    if (
-      !req.headers.authorization ||
-      (req.method !== "GET" && req.method !== "POST")
-    ) {
+    if (req.method !== "GET" && req.method !== "POST") {
       return next();
     }
 
@@ -25,7 +22,17 @@ export const timeLimitMiddleware = async (req, res, next) => {
       return next();
     }
 
-    const token = req.headers.authorization.split(" ")[1];
+    // Get token from either cookies or Authorization header
+    let token = req.cookies.accessToken;
+    if (!token && req.headers.authorization) {
+      token = req.headers.authorization.split(" ")[1];
+    }
+
+    // Skip if no token found
+    if (!token) {
+      return next();
+    }
+
     const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
     const userId = decodedToken.id;
 
@@ -36,29 +43,44 @@ export const timeLimitMiddleware = async (req, res, next) => {
       await timeLimit.save();
     }
 
-    // Check if we should reset the daily timer
-    if (timeLimit.shouldResetTime()) {
+    // Check if we should reset the daily timer (only at actual midnight, not on login)
+    const now = new Date();
+    const lastReset = new Date(timeLimit.lastReset);
+    const shouldReset = timeLimit.shouldResetTime();
+
+    if (shouldReset) {
+      console.log(
+        `⏰ Daily reset for user ${userId}: ${timeLimit.timeSpentToday}ms -> 0ms`
+      );
       timeLimit.timeSpentToday = 0;
-      timeLimit.lastReset = new Date();
+      timeLimit.lastReset = now;
       await timeLimit.save();
     }
 
-    // Check if user was inactive
-    const now = Date.now();
-    const timeSinceLastActive = now - timeLimit.lastActive.getTime();
-    if (timeSinceLastActive >= INACTIVE_TIMEOUT) {
+    // Check if user was inactive for too long
+    const timeSinceLastActive = now.getTime() - timeLimit.lastActive.getTime();
+    const wasInactive = timeSinceLastActive >= INACTIVE_TIMEOUT;
+
+    if (wasInactive && timeLimit.isOnline) {
       timeLimit.isOnline = false;
       await timeLimit.save();
     }
 
     // Update time spent if enough time has passed since last update
     const lastUpdate = lastUpdates.get(userId) || 0;
+    const timeSinceLastUpdate = now.getTime() - lastUpdate;
 
-    if (now - lastUpdate >= UPDATE_INTERVAL) {
-      // Only count time if user was marked as online
-      const timeToAdd = timeLimit.isOnline
-        ? Math.min(timeSinceLastActive, UPDATE_INTERVAL)
-        : UPDATE_INTERVAL;
+    if (timeSinceLastUpdate >= UPDATE_INTERVAL) {
+      // Only count active time (when user was marked as online and not inactive)
+      let timeToAdd = 0;
+
+      if (timeLimit.isOnline && !wasInactive) {
+        // Add the actual time since last update, capped at UPDATE_INTERVAL
+        timeToAdd = Math.min(timeSinceLastUpdate, UPDATE_INTERVAL);
+      } else {
+        // User was offline or inactive, only add the current update interval
+        timeToAdd = UPDATE_INTERVAL;
+      }
 
       const newTimeSpent = Math.min(
         DAILY_LIMIT,
@@ -69,15 +91,34 @@ export const timeLimitMiddleware = async (req, res, next) => {
       timeLimit.lastActive = now;
       timeLimit.isOnline = true;
       await timeLimit.save();
-      lastUpdates.set(userId, now);
+      lastUpdates.set(userId, now.getTime());
+
+      // Log time tracking for debugging
+      const remainingMinutes = Math.floor(
+        (DAILY_LIMIT - newTimeSpent) / (1000 * 60)
+      );
+      const sessionSeconds = Math.floor(timeToAdd / 1000);
+
+      console.log(`⏰ User ${userId} time tracking:`, {
+        timeSpentToday: Math.floor(newTimeSpent / (1000 * 60)), // in minutes
+        remainingMinutes,
+        sessionTimeSeconds: sessionSeconds,
+        wasInactive,
+        shouldReset,
+      });
 
       // If time limit exceeded, send error response
       if (newTimeSpent >= DAILY_LIMIT) {
         return res.status(403).json({
           error: "Daily time limit exceeded",
+          message:
+            "You have reached your daily usage limit of 2.5 hours. Please try again tomorrow.",
           timeSpent: newTimeSpent,
           timeLimit: DAILY_LIMIT,
           remainingTime: 0,
+          resetTime: new Date(
+            timeLimit.lastReset.getTime() + 24 * 60 * 60 * 1000
+          ).toISOString(),
         });
       }
     }
@@ -88,6 +129,7 @@ export const timeLimitMiddleware = async (req, res, next) => {
       remaining: timeLimit.getRemainingTime(),
       isOnline: timeLimit.isOnline,
       lastActive: timeLimit.lastActive,
+      lastReset: timeLimit.lastReset,
     };
 
     next();
@@ -101,8 +143,13 @@ export const timeLimitMiddleware = async (req, res, next) => {
 // Middleware to mark user as offline
 export const markOffline = async (req, res, next) => {
   try {
-    if (req.headers.authorization) {
-      const token = req.headers.authorization.split(" ")[1];
+    // Get token from either cookies or Authorization header
+    let token = req.cookies.accessToken;
+    if (!token && req.headers.authorization) {
+      token = req.headers.authorization.split(" ")[1];
+    }
+
+    if (token) {
       const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
       const userId = decodedToken.id;
 
@@ -110,6 +157,7 @@ export const markOffline = async (req, res, next) => {
       if (timeLimit) {
         timeLimit.isOnline = false;
         await timeLimit.save();
+        console.log(`⏰ User ${userId} marked offline`);
       }
     }
     next();

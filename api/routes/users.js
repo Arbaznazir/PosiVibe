@@ -1,16 +1,20 @@
 import express from "express";
 import {
   getUser,
+  getAllUsers,
   updateUser,
   searchUsers,
   getSuggestions,
   getTimeLimit,
   simulateTimeUsage,
+  verifyCurrentUser,
 } from "../controllers/user.js";
 import { zeroToleranceUserFilter } from "../utils/zeroToleranceMiddleware.js";
 
 const router = express.Router();
 
+router.get("/", getAllUsers);
+router.get("/verify", verifyCurrentUser);
 router.get("/find/:userId", getUser);
 router.get("/search", searchUsers);
 router.get("/suggestions", getSuggestions);

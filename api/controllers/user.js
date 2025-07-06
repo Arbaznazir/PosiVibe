@@ -4,7 +4,7 @@ import mongoose from "mongoose";
 import {
   filterUserContent,
   logContentViolation,
-} from "../utils/contentFilter.js";
+} from "../utils/aiContentFilter.js";
 import User from "../models/User.js";
 import Relationship from "../models/Relationship.js";
 
@@ -70,17 +70,82 @@ const getUserTimeLimit = (userId) => {
 export const getUser = async (req, res) => {
   try {
     const userId = req.params.userId;
+    console.log("🔍 Fetching user profile for ID:", userId);
+
     const user = await User.findById(userId).select("-password");
+    console.log("📋 User found:", user ? "Yes" : "No");
 
     if (!user) {
+      console.log("❌ User not found in database");
       return res.status(404).json("User not found!");
     }
 
+    console.log("✅ Returning user data:", user.name);
     return res.json(user);
   } catch (err) {
-    console.error("Get user error:", err);
+    console.error("❌ Get user error:", err.message);
     return res.status(500).json("Failed to get user");
   }
+};
+
+export const getAllUsers = async (req, res) => {
+  const token = req.cookies.accessToken;
+  if (!token) return res.status(401).json("Not authenticated!");
+
+  jwt.verify(
+    token,
+    process.env.JWT_SECRET || "secretkey",
+    async (err, userInfo) => {
+      if (err) return res.status(403).json("Token is not valid!");
+
+      try {
+        // Get all users except the current user
+        const users = await User.find({
+          _id: { $ne: userInfo.id },
+        })
+          .select("-password")
+          .sort({ createdAt: -1 });
+
+        return res.json(users);
+      } catch (err) {
+        console.error("Get all users error:", err);
+        return res.status(500).json("Failed to get users");
+      }
+    }
+  );
+};
+
+export const verifyCurrentUser = async (req, res) => {
+  const token = req.cookies.accessToken;
+  if (!token) return res.status(401).json("Not authenticated!");
+
+  jwt.verify(
+    token,
+    process.env.JWT_SECRET || "secretkey",
+    async (err, userInfo) => {
+      if (err) return res.status(403).json("Token is not valid!");
+
+      try {
+        // Check if the current user still exists in the database
+        const user = await User.findById(userInfo.id).select("-password");
+
+        if (!user) {
+          console.log("❌ User no longer exists in database:", userInfo.id);
+          return res.status(404).json("User no longer exists");
+        }
+
+        // Return fresh user data
+        const userObj = user.toObject();
+        userObj.id = userObj._id; // Ensure id field exists for frontend compatibility
+
+        console.log("✅ User verification successful:", user.name);
+        return res.json(userObj);
+      } catch (err) {
+        console.error("User verification error:", err);
+        return res.status(500).json("Verification failed");
+      }
+    }
+  );
 };
 
 export const searchUsers = async (req, res) => {

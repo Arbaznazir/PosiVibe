@@ -1,153 +1,82 @@
 import "./leftBar.scss";
-import Friends from "../../assets/1.png";
-import Groups from "../../assets/2.png";
-import Market from "../../assets/3.png";
-import Watch from "../../assets/4.png";
-import Memories from "../../assets/5.png";
-import Events from "../../assets/6.png";
-import Gaming from "../../assets/7.png";
-import Gallery from "../../assets/8.png";
-import Messages from "../../assets/10.png";
 import { AuthContext } from "../../context/authContext";
-import { useContext, useEffect } from "react";
+import { useContext } from "react";
 import { Link } from "react-router-dom";
-import Avatar from "../avatar/Avatar";
+import {
+  Home as HomeIcon,
+  Message as MessageIcon,
+  People as PeopleIcon,
+  Group as GroupIcon,
+  OndemandVideo as VideoIcon,
+  PhotoLibrary as PhotoIcon,
+  Event as EventIcon,
+  SportsEsports as GamingIcon,
+  AdminPanelSettings as AdminIcon,
+} from "@mui/icons-material";
 
-const LeftBar = ({ isOpen, onClose }) => {
+const LeftBar = () => {
   const { currentUser } = useContext(AuthContext);
 
-  // Close mobile menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (isOpen && !event.target.closest('.leftBar') && !event.target.closest('.mobile-menu-btn')) {
-        onClose();
-      }
-    };
-
-    if (isOpen) {
-      document.addEventListener('click', handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener('click', handleClickOutside);
-    };
-  }, [isOpen, onClose]);
-
-  // Prevent body scroll when mobile menu is open
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
-    }
-
-    return () => {
-      document.body.style.overflow = 'unset';
-    };
-  }, [isOpen]);
-
   return (
-    <>
-      {/* Mobile overlay */}
-      {isOpen && <div className="mobile-overlay" onClick={onClose} />}
-      
-      <div className={`leftBar ${isOpen ? 'open' : ''}`}>
+    <div className="leftBar">
       <div className="container">
-          {/* User Section */}
-          <Link 
-            to={`/profile/${currentUser?._id || currentUser?.id}`} 
-            className="user-section"
-            onClick={() => onClose && onClose()}
-          >
-            <Avatar 
-              src={currentUser?.profilePic} 
-              name={currentUser?.name} 
-              size="large" 
-              className="user-avatar"
-              showOnline={true}
-            />
-            <div className="user-info">
-              <h3 className="user-name">{currentUser?.name || 'User'}</h3>
-              <p className="user-handle">@{currentUser?.username || 'username'}</p>
-            </div>
+        <div className="menu">
+          <Link to={`/app/profile/${currentUser.id || currentUser._id}`} className="user">
+            <img src={currentUser.profilePic} alt="" />
+            <span>{currentUser.name}</span>
           </Link>
-
-          {/* Navigation */}
-          <div className="navigation">
-            <div className="nav-item" onClick={() => onClose && onClose()}>
-              <img src={Friends} alt="" className="nav-icon" />
-              <span className="nav-text">Friends</span>
-            </div>
-            <div className="nav-item" onClick={() => onClose && onClose()}>
-              <img src={Groups} alt="" className="nav-icon" />
-              <span className="nav-text">Groups</span>
+          
+          <Link to="/app" className="item">
+            <HomeIcon />
+            <span>Home</span>
+          </Link>
+          
+          <Link to="/app/messages" className="item">
+            <MessageIcon />
+            <span>Messages</span>
+          </Link>
+          
+          <Link to="/app/friends" className="item">
+            <PeopleIcon />
+            <span>Friends</span>
+          </Link>
+          
+          {currentUser.isAdmin && (
+            <Link to="/app/admin" className="item admin">
+              <AdminIcon />
+              <span>Admin Panel</span>
+            </Link>
+          )}
+          
+          <div className="item disabled">
+            <GroupIcon />
+            <span>Groups</span>
           </div>
-            <div className="nav-item" onClick={() => onClose && onClose()}>
-              <img src={Market} alt="" className="nav-icon" />
-              <span className="nav-text">Marketplace</span>
+          
+          <div className="item disabled">
+            <VideoIcon />
+            <span>Watch</span>
           </div>
-            <div className="nav-item" onClick={() => onClose && onClose()}>
-              <img src={Watch} alt="" className="nav-icon" />
-              <span className="nav-text">Watch</span>
-              <span className="nav-count">9</span>
+          
+          <div className="item disabled">
+            <PhotoIcon />
+            <span>Memories</span>
           </div>
-            <div className="nav-item" onClick={() => onClose && onClose()}>
-              <img src={Memories} alt="" className="nav-icon" />
-              <span className="nav-text">Memories</span>
-          </div>
-            <div className="nav-item" onClick={() => onClose && onClose()}>
-              <img src={Events} alt="" className="nav-icon" />
-              <span className="nav-text">Events</span>
-          </div>
-            <div className="nav-item" onClick={() => onClose && onClose()}>
-              <img src={Gaming} alt="" className="nav-icon" />
-              <span className="nav-text">Gaming</span>
-          </div>
-            <div className="nav-item" onClick={() => onClose && onClose()}>
-              <img src={Messages} alt="" className="nav-icon" />
-              <span className="nav-text">Messages</span>
-              <span className="nav-count">3</span>
         </div>
+        <hr />
+        <div className="menu">
+          <span>Your shortcuts</span>
+          <div className="item disabled">
+            <EventIcon />
+            <span>Events</span>
           </div>
-
-          {/* Your Activity Stats */}
-          <div className="activity-stats">
-            <h4 className="stats-title">Your Activity</h4>
-            <div className="stats-grid">
-              <div className="stat-item">
-                <div className="stat-number">12</div>
-                <div className="stat-label">Posts</div>
-              </div>
-              <div className="stat-item">
-                <div className="stat-number">48</div>
-                <div className="stat-label">Friends</div>
-              </div>
-              <div className="stat-item">
-                <div className="stat-number">156</div>
-                <div className="stat-label">Likes</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Trending Topics */}
-          <div className="trending">
-            <h4 className="trending-title">Trending</h4>
-            <div className="trending-item">
-              <span className="trending-topic">#PositiveVibes</span>
-              <span className="trending-count">2.4k posts</span>
-            </div>
-            <div className="trending-item">
-              <span className="trending-topic">#DigitalWellness</span>
-              <span className="trending-count">1.8k posts</span>
-            </div>
-            <div className="trending-item">
-              <span className="trending-topic">#MindfulSocial</span>
-              <span className="trending-count">892 posts</span>
-            </div>
+          <div className="item disabled">
+            <GamingIcon />
+            <span>Gaming</span>
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 };
 

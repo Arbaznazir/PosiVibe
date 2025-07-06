@@ -10,7 +10,10 @@ let flaggedContent = [];
  * @param {object} violation - Violation details
  */
 export const addViolation = (violation) => {
-  contentViolations.push(violation);
+  contentViolations.push({
+    ...violation,
+    timestamp: new Date().toISOString(),
+  });
 
   // Auto-flag users with multiple violations
   const userViolations = contentViolations.filter(
@@ -26,7 +29,7 @@ export const addViolation = (violation) => {
       (v) => v.severity === "critical"
     );
     if (criticalViolations.length >= 1) {
-      banUser(violation.userId, "Critical content violation");
+      banUser(violation.userId, "Critical content violation", "system");
     }
   }
 };
@@ -50,21 +53,51 @@ export const flagUser = (userId, reason) => {
 };
 
 /**
+ * Remove flag from user
+ * @param {string} userId - User ID to unflag
+ */
+export const unflagUser = (userId) => {
+  const index = flaggedContent.findIndex((f) => f.userId === userId);
+  if (index !== -1) {
+    flaggedContent.splice(index, 1);
+    console.log(`✅ Flag removed from user: ${userId}`);
+  }
+};
+
+/**
  * Ban a user from the platform
  * @param {string} userId - User ID to ban
  * @param {string} reason - Reason for banning
+ * @param {string} bannedBy - Admin ID who banned the user
  */
-export const banUser = (userId, reason) => {
+export const banUser = (userId, reason, bannedBy) => {
   const existingBan = bannedUsers.find((b) => b.userId === userId);
   if (!existingBan) {
     bannedUsers.push({
       userId: userId,
       reason: reason,
       bannedAt: new Date().toISOString(),
-      bannedBy: "system",
+      bannedBy: bannedBy || "system",
       status: "active",
     });
     console.error(`🔨 User banned: ${userId} - ${reason}`);
+  }
+};
+
+/**
+ * Unban a user
+ * @param {string} userId - User ID to unban
+ * @param {string} unbannedBy - Admin ID who unbanned the user
+ */
+export const unbanUser = (userId, unbannedBy) => {
+  const ban = bannedUsers.find(
+    (b) => b.userId === userId && b.status === "active"
+  );
+  if (ban) {
+    ban.status = "inactive";
+    ban.unbannedAt = new Date().toISOString();
+    ban.unbannedBy = unbannedBy;
+    console.log(`✅ User unbanned: ${userId}`);
   }
 };
 
@@ -105,14 +138,19 @@ export const getViolationStats = () => {
     return acc;
   }, {});
 
+  const activeBans = bannedUsers.filter((b) => b.status === "active");
+  const pendingFlags = flaggedContent.filter(
+    (f) => f.status === "pending_review"
+  );
+
   return {
     total: contentViolations.length,
     last24Hours: recent24h.length,
     last7Days: recent7d.length,
     byType: byType,
     bySeverity: bySeverity,
-    bannedUsers: bannedUsers.length,
-    flaggedUsers: flaggedContent.length,
+    bannedUsers: activeBans.length,
+    flaggedUsers: pendingFlags.length,
   };
 };
 
@@ -131,11 +169,19 @@ export const getRecentViolations = (limit = 10) => {
  * Admin endpoint to view moderation dashboard
  */
 export const getModerationDashboard = () => {
+  const activeBans = bannedUsers.filter((b) => b.status === "active");
+  const pendingFlags = flaggedContent.filter(
+    (f) => f.status === "pending_review"
+  );
+
   return {
     stats: getViolationStats(),
     recentViolations: getRecentViolations(5),
-    bannedUsers: bannedUsers.slice(-5), // Last 5 banned users
-    flaggedUsers: flaggedContent.filter((f) => f.status === "pending_review"),
+    bannedUsers: activeBans.slice(-5), // Last 5 banned users
+    flaggedUsers: pendingFlags,
+    banHistory: bannedUsers
+      .sort((a, b) => new Date(b.bannedAt) - new Date(a.bannedAt))
+      .slice(0, 10), // Last 10 ban actions
   };
 };
 
