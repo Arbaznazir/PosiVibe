@@ -1,116 +1,149 @@
+@import "../../style.scss";
+
 .avatar {
   position: relative;
-  display: inline-block;
   border-radius: 50%;
   overflow: hidden;
-  border: 2px solid rgba(255, 255, 255, 0.8);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  transition: all 0.2s ease;
-
-  &.clickable:hover {
-    transform: scale(1.05);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  }
-
-  // Size variants
-  &.avatar-small {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--bg-soft);
+  
+  &.small {
     width: 32px;
     height: 32px;
-    border-width: 1px;
+    min-width: 32px;
   }
 
-  &.avatar-medium {
+  &.medium {
     width: 40px;
     height: 40px;
+    min-width: 40px;
   }
 
-  &.avatar-large {
-    width: 60px;
-    height: 60px;
-    border-width: 3px;
-  }
-
-  &.avatar-xlarge {
+  &.large {
     width: 120px;
     height: 120px;
-    border-width: 4px;
+    min-width: 120px;
+    
+    &:hover .edit-button {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
   }
 
-  // Profile picture image
   img {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    display: block;
   }
 
-  // Fallback with initials
-  .avatar-fallback {
+  .default-avatar {
     width: 100%;
     height: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: white;
     font-weight: 600;
-    font-size: 0.875rem;
+    color: white;
     text-transform: uppercase;
-    user-select: none;
-    
-    // Size-specific font sizes
-    .avatar-small & {
-      font-size: 0.75rem;
+    background-color: var(--primary-color);
+
+    svg {
+      width: 60%;
+      height: 60%;
+      color: white;
+      opacity: 0.9;
     }
-    
-    .avatar-medium & {
+
+    .small & {
       font-size: 0.875rem;
+      svg { width: 50%; height: 50%; }
     }
-    
-    .avatar-large & {
-      font-size: 1.25rem;
+
+    .medium & {
+      font-size: 1rem;
+      svg { width: 55%; height: 55%; }
     }
-    
-    .avatar-xlarge & {
-      font-size: 2rem;
+
+    .large & {
+      font-size: 2.5rem;
+      svg { width: 65%; height: 65%; }
     }
   }
 
-  // Online indicator
-  .online-indicator {
+  .edit-button {
     position: absolute;
-    bottom: 0;
-    right: 0;
-    width: 12px;
-    height: 12px;
-    background-color: #22c55e;
-    border: 2px solid white;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.9);
+    background-color: rgba(0, 0, 0, 0.6);
+    color: white;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
-    
-    .avatar-small & {
-      width: 8px;
-      height: 8px;
-      border-width: 1px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    opacity: 0;
+    border: 2px solid rgba(255, 255, 255, 0.8);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+
+    &:hover {
+      background-color: rgba(0, 0, 0, 0.8);
+      transform: translate(-50%, -50%) scale(1.1);
     }
-    
-    .avatar-large & {
-      width: 16px;
-      height: 16px;
-      border-width: 3px;
+
+    svg {
+      font-size: 20px;
     }
-    
-    .avatar-xlarge & {
-      width: 24px;
-      height: 24px;
-      border-width: 4px;
+
+    .large & {
+      width: 48px;
+      height: 48px;
+
+      svg {
+        font-size: 24px;
+      }
     }
   }
-}
 
-// Dark mode adjustments
-.theme-dark .avatar {
-  border-color: rgba(255, 255, 255, 0.1);
-  
-  .online-indicator {
-    border-color: #1f2937;
+  .cropper-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--overlay);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .error-message {
+    position: absolute;
+    bottom: -30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: var(--danger-color);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  .loading-overlay {
+    position: absolute;
+    inset: 0;
+    background-color: var(--overlay);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 14px;
   }
 } 
