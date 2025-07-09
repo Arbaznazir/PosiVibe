@@ -6,6 +6,7 @@ export const authMiddleware = async (req, res, next) => {
     // Get token from cookie or Authorization header
     const token =
       req.cookies.accessToken || req.headers.authorization?.split(" ")[1];
+
     if (!token) return res.status(401).json("Not logged in!");
 
     // Verify token

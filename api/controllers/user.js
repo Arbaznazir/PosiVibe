@@ -34,6 +34,10 @@ export const getUser = async (req, res) => {
 
 export const getAllUsers = async (req, res) => {
   try {
+    if (!req.userInfo || !req.userInfo.id) {
+      return res.status(401).json("User information not available");
+    }
+
     const currentUserId = req.userInfo.id;
 
     // Get all users except the current user

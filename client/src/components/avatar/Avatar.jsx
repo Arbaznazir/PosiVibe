@@ -78,6 +78,7 @@ const Avatar = ({
   };
 
   const handleImageError = () => {
+    console.log('Profile image failed to load:', user?.profilePic);
     setImageError(true);
   };
 

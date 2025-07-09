@@ -10,6 +10,7 @@ const CoverPhoto = ({ user, editable = false }) => {
   const [previewUrl, setPreviewUrl] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [imageError, setImageError] = useState(false);
 
   const handleImageSelect = async (e) => {
     const file = e.target.files[0];
@@ -68,9 +69,22 @@ const CoverPhoto = ({ user, editable = false }) => {
     setPreviewUrl(null);
   };
 
+  const handleImageError = () => {
+    console.log('Cover image failed to load:', user?.coverPic);
+    setImageError(true);
+  };
+
   return (
     <div className="cover-photo">
-      <img src={user.coverPic} alt="Cover" />
+      {user.coverPic && !imageError ? (
+        <img src={user.coverPic} alt="Cover" onError={handleImageError} />
+      ) : (
+        <div className="default-cover">
+          <div className="default-cover-content">
+            <span>No cover photo</span>
+          </div>
+        </div>
+      )}
       
       {editable && (
         <label className="edit-button" title="Change cover photo">

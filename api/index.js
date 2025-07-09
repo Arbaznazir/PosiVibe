@@ -273,13 +273,13 @@ app.post("/api/upload", async (req, res) => {
           gravity: transform_gravity,
         };
 
-        const uploadedUrl = await uploadToCloudinary(
+        const uploadResult = await uploadToCloudinary(
           file,
           "upload.jpg",
           "posivibe/uploads",
           transformations
         );
-        res.status(200).json(uploadedUrl);
+        res.status(200).json(uploadResult.secure_url);
       } catch (error) {
         console.error("Upload error:", error);
         res.status(500).json({ error: "Failed to upload file" });
