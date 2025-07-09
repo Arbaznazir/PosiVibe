@@ -6,6 +6,7 @@ import {
   deletePost,
   analyzeContent,
 } from "../controllers/post.js";
+import { authMiddleware } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
@@ -18,11 +19,12 @@ const upload = multer({
   },
 }).single("image"); // Changed to match frontend's field name
 
-router.get("/", getPosts);
+router.get("/", authMiddleware, getPosts);
 
 // Apply zero tolerance filtering to post creation
 router.post(
   "/",
+  authMiddleware,
   (req, res, next) => {
     console.log("📝 Received post request", {
       contentType: req.headers["content-type"],
@@ -42,9 +44,9 @@ router.post(
   addPost
 );
 
-router.delete("/:id", deletePost);
+router.delete("/:id", authMiddleware, deletePost);
 
 // New endpoint for content analysis preview
-router.post("/analyze", analyzeContent);
+router.post("/analyze", authMiddleware, analyzeContent);
 
 export default router;

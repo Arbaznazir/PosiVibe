@@ -183,7 +183,7 @@ export const addStory = async (req, res) => {
             const uploadResult = await uploadToCloudinary(
               mediaFile.data,
               mediaFile.name,
-              "stories"
+              "posivibe/stories"
             );
 
             // Create new story object

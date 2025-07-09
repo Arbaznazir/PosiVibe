@@ -4,7 +4,6 @@ import { useContext } from "react";
 import { Link } from "react-router-dom";
 import {
   Home as HomeIcon,
-  Message as MessageIcon,
   People as PeopleIcon,
   Group as GroupIcon,
   OndemandVideo as VideoIcon,
@@ -29,11 +28,6 @@ const LeftBar = () => {
           <Link to="/app" className="item">
             <HomeIcon />
             <span>Home</span>
-          </Link>
-          
-          <Link to="/app/messages" className="item">
-            <MessageIcon />
-            <span>Messages</span>
           </Link>
           
           <Link to="/app/friends" className="item">

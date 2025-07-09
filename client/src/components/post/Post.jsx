@@ -10,6 +10,7 @@ import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import { Link } from "react-router-dom";
 import Comments from "../comments/Comments";
 import Avatar from "../avatar/Avatar";
+import VerificationBadge from "../verificationBadge/VerificationBadge";
 import { useState, useRef, useEffect } from "react";
 import moment from "moment";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
@@ -161,19 +162,27 @@ const Post = ({ post }) => {
         <div className="user">
           <div className="userInfo">
             <Avatar 
-              src={post?.profilePic} 
-              name={post?.name} 
+              user={{
+                profilePic: post?.profilePic,
+                name: post?.name,
+                verificationBadge: post?.verificationBadge
+              }}
               size="small" 
               className="avatar"
               showOnline={true}
             />
             <div className="details">
+              <div className="name-container">
               <Link
                 to={`/profile/${post?.userId}`}
                 className="name"
               >
                 {post?.name}
               </Link>
+                {post?.verificationBadge && (
+                  <VerificationBadge badge={post.verificationBadge} size="small" />
+                )}
+              </div>
               <span className="date">
                 <AccessTimeIcon className="time-icon" />
                 {moment(post?.createdAt).fromNow()}

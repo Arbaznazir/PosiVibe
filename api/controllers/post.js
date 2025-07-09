@@ -20,18 +20,12 @@ import {
 
 // Enhanced post creation with ultra-robust content filtering
 export const addPost = async (req, res) => {
-  const token = req.cookies.accessToken;
-  if (!token) {
-    return res.status(401).json("Not logged in!");
-  }
-
   try {
-    console.log("🔒 Verifying user token...");
-    const userInfo = jwt.verify(token, process.env.JWT_SECRET || "secretkey");
-    console.log("✅ Token verified for user:", userInfo.id);
+    console.log("✅ User authenticated:", req.userInfo.id);
+    const userId = req.userInfo.id;
 
     // Check trust status first
-    const trustStatus = await checkTrustStatus(userInfo.id);
+    const trustStatus = await checkTrustStatus(userId);
 
     const { desc } = req.body;
     let imgUrl = null;
@@ -67,18 +61,30 @@ export const addPost = async (req, res) => {
         const imageAnalysis = await analyzeImageContent(req.file.buffer);
 
         if (!imageAnalysis.isClean) {
-          console.error("❌ Image content violation detected:", imageAnalysis);
-          logContentViolation("image", userInfo.id, imageAnalysis, {
+          console.log("⚠️ Image content violation detected:", imageAnalysis);
+          logContentViolation("image", userId, imageAnalysis, {
             filename: req.file.originalname,
             size: req.file.size,
             type: req.file.mimetype,
           });
 
-          return res.status(403).json({
-            message: "Image content violates community guidelines",
-            severity: imageAnalysis.severity,
-            confidence: imageAnalysis.confidence,
-            violations: imageAnalysis.violations,
+          // Return user-friendly popup response instead of harsh error
+          return res.status(400).json({
+            showPopup: true,
+            popupType: "content_moderation",
+            title: "Image Guidelines Notice",
+            message:
+              "We appreciate your contribution! Let's make sure your image aligns with our positive community values.",
+            details:
+              "Your image contains content that doesn't meet our community guidelines. Please choose a different image and try again.",
+            suggestions: [
+              "Share positive and uplifting images",
+              "Avoid violent or disturbing content",
+              "Choose images that inspire and connect people",
+              "Make sure images are appropriate for all audiences",
+              "Focus on building a positive community",
+            ],
+            severity: imageAnalysis.severity === "critical" ? "high" : "medium",
           });
         }
 
@@ -153,7 +159,7 @@ export const addPost = async (req, res) => {
     console.log("🔍 Analyzing content...");
     const contentAnalysis = await filterPostContent(
       { desc, img: imgUrl },
-      userInfo.id
+      userId
     );
     console.log("✅ Content analysis complete:", {
       isClean: contentAnalysis.isClean,
@@ -163,25 +169,35 @@ export const addPost = async (req, res) => {
 
     if (!contentAnalysis.isClean) {
       // Update trust score for violation
-      const trustUpdate = await updateTrustScore(userInfo.id, {
+      const trustUpdate = await updateTrustScore(userId, {
         type: "post",
         severity: contentAnalysis.severity,
         reason: "Content violation in post",
       });
 
-      // Return detailed response with trust score
-      return res.status(403).json({
-        message: "Content flagged for violation",
-        severity: contentAnalysis.severity,
-        trustScore: trustUpdate.newTrustScore,
-        warnings: trustUpdate.warnings,
-        suggestedEdit: desc ? cleanText(desc) : null,
+      // Return user-friendly popup response
+      return res.status(400).json({
+        showPopup: true,
+        popupType: "content_moderation",
+        title: "Content Guidelines Notice",
+        message:
+          "We appreciate your contribution! Let's make sure your content aligns with our positive community values.",
+        details:
+          "Your post contains content that doesn't meet our community guidelines. Please review and try again.",
+        suggestions: [
+          "Use encouraging and positive language",
+          "Share uplifting and inspiring content",
+          "Avoid controversial or negative topics",
+          "Focus on building connections and community",
+          "Be respectful and kind to all users",
+        ],
+        severity: "medium",
       });
     }
 
     // Create and save the post
     const newPost = new Post({
-      userId: userInfo.id,
+      userId: userId,
       desc: desc,
       img: imgUrl,
       createdAt: moment(Date.now()).format("YYYY-MM-DD HH:mm:ss"),
@@ -189,10 +205,9 @@ export const addPost = async (req, res) => {
 
     await newPost.save();
 
-    // Return success with current trust score
+    // Return success without trust score
     return res.status(200).json({
       message: "Post created successfully",
-      trustScore: trustStatus.trustScore,
       post: newPost,
     });
   } catch (error) {
@@ -206,14 +221,9 @@ export const addPost = async (req, res) => {
 
 // Enhanced post retrieval with content safety verification
 export const getPosts = async (req, res) => {
-  const token = req.cookies.accessToken;
-  if (!token) {
-    return res.status(401).json("Not logged in!");
-  }
-
   try {
-    const userInfo = jwt.verify(token, process.env.JWT_SECRET || "secretkey");
     const userId = req.query.userId;
+    const currentUserId = req.userInfo.id;
 
     let query = {};
 
@@ -225,51 +235,70 @@ export const getPosts = async (req, res) => {
 
       // Get list of users that the current user follows
       const followedUsers = await Relationship.find({
-        followerUserId: userInfo.id,
+        followerUserId: currentUserId,
       }).select("followedUserId");
 
       // Extract the user IDs from the relationships
       const followedUserIds = followedUsers.map((rel) => rel.followedUserId);
 
       // Include the current user's own posts as well
-      followedUserIds.push(userInfo.id);
+      followedUserIds.push(currentUserId);
 
       // Query posts only from followed users and self
       query.userId = { $in: followedUserIds };
 
       console.log(
-        `📋 Feed for user ${userInfo.id}: showing posts from ${followedUserIds.length} users (${followedUsers.length} followed + self)`
+        `📋 Feed for user ${currentUserId}: showing posts from ${followedUserIds.length} users (${followedUsers.length} followed + self)`
       );
     }
 
-    // Get posts from database with user information
-    const posts = await Post.find(query)
-      .populate("userId", "name profilePic username")
-      .sort({ createdAt: -1 })
-      .lean();
+    // Get posts from database
+    const posts = await Post.find(query).sort({ createdAt: -1 }).lean();
 
-    // Format posts for frontend with better error handling
-    const formattedPosts = posts.map((post) => {
-      // Handle cases where populate might fail or user might be deleted
-      const userData = post.userId;
+    // Manually fetch user data for each post to ensure all fields are included
+    const formattedPosts = await Promise.all(
+      posts.map(async (post) => {
+        try {
+          // Fetch full user data
+          const userData = await User.findById(post.userId)
+            .select("-password")
+            .lean();
 
-      return {
-        ...post,
-        id: post._id,
-        name: userData?.name || "Unknown User",
-        profilePic: userData?.profilePic || null,
-        username: userData?.username || null,
-        userId: userData?._id || post.userId, // Keep original userId if populate failed
-        // Add debug info in development
-        ...(process.env.NODE_ENV === "development" && {
-          _debug: {
-            originalUserId: post.userId,
-            populatedUser: userData,
-            hasUserData: !!userData,
-          },
-        }),
-      };
-    });
+          return {
+            ...post,
+            id: post._id,
+            name: userData?.name || "Unknown User",
+            profilePic: userData?.profilePic || null,
+            username: userData?.username || null,
+            userId: userData?._id || post.userId,
+            isVerified: userData?.isVerified || false,
+            verificationBadge: userData?.verificationBadge || null,
+            verificationReason: userData?.verificationReason || null,
+            // Add debug info in development
+            ...(process.env.NODE_ENV === "development" && {
+              _debug: {
+                originalUserId: post.userId,
+                fetchedUser: userData,
+                hasUserData: !!userData,
+              },
+            }),
+          };
+        } catch (error) {
+          console.error("Error fetching user data for post:", post._id, error);
+          return {
+            ...post,
+            id: post._id,
+            name: "Unknown User",
+            profilePic: null,
+            username: null,
+            userId: post.userId,
+            isVerified: false,
+            verificationBadge: null,
+            verificationReason: null,
+          };
+        }
+      })
+    );
 
     // Log debug info for troubleshooting
     if (process.env.NODE_ENV === "development" && formattedPosts.length > 0) {
@@ -278,8 +307,8 @@ export const getPosts = async (req, res) => {
         firstPost: {
           id: formattedPosts[0].id,
           name: formattedPosts[0].name,
+          verificationBadge: formattedPosts[0].verificationBadge,
           hasUserData: !!formattedPosts[0]._debug?.hasUserData,
-          originalUserId: formattedPosts[0]._debug?.originalUserId,
         },
       });
     }
@@ -300,18 +329,13 @@ export const getPosts = async (req, res) => {
 
 // Enhanced post deletion with audit logging
 export const deletePost = async (req, res) => {
-  const token = req.cookies.accessToken;
-  if (!token) {
-    return res.status(401).json("Not logged in!");
-  }
-
   try {
-    const userInfo = jwt.verify(token, process.env.JWT_SECRET || "secretkey");
+    const currentUserId = req.userInfo.id;
     const postId = req.params.id;
 
     const post = await Post.findOne({
       _id: postId,
-      userId: userInfo.id,
+      userId: currentUserId,
     });
 
     if (!post) {
@@ -325,7 +349,7 @@ export const deletePost = async (req, res) => {
     // Log post deletion for audit trail
     console.log("🗑️ Post deleted:", {
       postId: post._id,
-      userId: userInfo.id,
+      userId: currentUserId,
       deletedAt: new Date().toISOString(),
       originalContent: {
         desc: post.desc,
@@ -355,13 +379,8 @@ export const deletePost = async (req, res) => {
 
 // New endpoint for content analysis preview (helps users understand what might be blocked)
 export const analyzeContent = async (req, res) => {
-  const token = req.cookies.accessToken;
-  if (!token) {
-    return res.status(401).json("Not logged in!");
-  }
-
   try {
-    const userInfo = jwt.verify(token, process.env.JWT_SECRET || "secretkey");
+    const currentUserId = req.userInfo.id;
     const { desc, img } = req.body;
 
     if (!desc && !img) {

@@ -33,6 +33,7 @@ const Messages = ({ isOpen, onClose }) => {
   const [isTyping, setIsTyping] = useState(false);
   const [typingUser, setTypingUser] = useState(null);
   const [showSidebar, setShowSidebar] = useState(true);
+  const [onlineUsers, setOnlineUsers] = useState(new Set());
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const queryClient = useQueryClient();
@@ -54,37 +55,34 @@ const Messages = ({ isOpen, onClose }) => {
 
   // Debug log conversations
   useEffect(() => {
-    console.log('📋 Conversations state updated:', conversations);
-    console.log('📋 Conversations loading:', conversationsLoading);
-    console.log('📋 Current user:', currentUser);
-  }, [conversations, conversationsLoading, currentUser]);
+    if (conversations.length > 0) {
+      console.log('Conversations loaded:', conversations);
+    }
+  }, [conversations]);
 
-  // Fetch suggested users (people you follow but haven't messaged)
+  // Fetch users that the current user follows (for starting new conversations)
   const { data: suggestedUsers = [], isLoading: suggestedLoading } = useQuery({
-    queryKey: ['suggestedUsers'],
+    queryKey: ['followingUsers'],
     queryFn: async () => {
       try {
         const followingRes = await makeRequest.get('/relationships?followerUserId=' + currentUser.id);
-        const following = followingRes.data;
+        const followingIds = followingRes.data;
         
-        // Get users you follow but haven't messaged
-        const conversationUserIds = conversations.map(conv => conv.user._id);
-        const suggestedUserIds = following.filter(userId => !conversationUserIds.includes(userId));
+        if (followingIds.length === 0) return [];
         
-        if (suggestedUserIds.length === 0) return [];
-        
-        const usersPromises = suggestedUserIds.slice(0, 5).map(userId => 
-          makeRequest.get(`/users/find/${userId}`).then(res => res.data)
+        // Get user details for each followed user
+        const usersPromises = followingIds.map(userId => 
+          makeRequest.get(`/users/find/${userId}`).then(res => res.data).catch(() => null)
         );
         
         const users = await Promise.all(usersPromises);
         return users.filter(user => user);
       } catch (error) {
-        console.error('Error fetching suggested users:', error);
+        console.error('Error fetching following users:', error);
         return [];
       }
     },
-    enabled: isOpen && !!currentUser && conversations.length >= 0,
+    enabled: isOpen && !!currentUser,
     retry: 1,
   });
 
@@ -109,13 +107,14 @@ const Messages = ({ isOpen, onClose }) => {
   // Socket.IO setup
   useEffect(() => {
     if (isOpen && currentUser) {
-      const token = document.cookie
-        .split('; ')
-        .find(row => row.startsWith('accessToken='))
-        ?.split('=')[1];
-
-      if (token) {
-        socketService.connect(token);
+      // Connect to socket service
+      const socket = socketService.connect();
+      
+      if (!socket) {
+        console.error("Failed to connect to socket service");
+        toast.error("Failed to connect to messaging service");
+        return;
+      }
 
         // Listen for new messages
         socketService.onNewMessage((message) => {
@@ -132,14 +131,17 @@ const Messages = ({ isOpen, onClose }) => {
 
         // Listen for message sent confirmation
         socketService.onMessageSent((message) => {
+        console.log('✅ Message sent confirmation received:', message);
           setMessages(prev => [...prev, message]);
-          setNewMessage('');
+        // Don't clear newMessage here since we already cleared it optimistically
           queryClient.invalidateQueries(['conversations']);
         });
 
         // Listen for message errors
         socketService.onMessageError((error) => {
+        console.log('❌ Message error received:', error);
           toast.error(error.error);
+        // Note: We could restore the message here if needed
         });
 
         // Listen for typing indicators
@@ -152,7 +154,23 @@ const Messages = ({ isOpen, onClose }) => {
         socketService.onUserStopTyping((data) => {
           setTypingUser(null);
         });
-      }
+
+      // Listen for online status changes
+      socketService.onUserOnline((data) => {
+        setOnlineUsers(prev => new Set([...prev, data.userId]));
+      });
+
+      socketService.onUserOffline((data) => {
+        setOnlineUsers(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(data.userId);
+          return newSet;
+        });
+      });
+
+      socketService.onOnlineUsersUpdate((userIds) => {
+        setOnlineUsers(new Set(userIds));
+      });
     }
 
     return () => {
@@ -174,9 +192,41 @@ const Messages = ({ isOpen, onClose }) => {
 
   const handleSendMessage = (e) => {
     e.preventDefault();
-    if (!newMessage.trim() || !selectedUserId) return;
+    
+    console.log('🔄 handleSendMessage called:', { 
+      newMessage: `"${newMessage}"`, 
+      trimmed: `"${newMessage.trim()}"`,
+      selectedUserId 
+    });
+    
+    if (!newMessage || !newMessage.trim() || !selectedUserId) {
+      console.log('❌ Message validation failed:', {
+        hasMessage: !!newMessage,
+        trimmedLength: newMessage ? newMessage.trim().length : 0,
+        hasSelectedUser: !!selectedUserId
+      });
+      
+      if (!newMessage || !newMessage.trim()) {
+        toast.error('Please enter a message');
+      }
+      return;
+    }
 
-    socketService.sendMessage(selectedUserId, newMessage.trim());
+    console.log('🔄 Sending message:', { selectedUserId, message: newMessage.trim() });
+    console.log('🔗 Socket connected:', socketService.isConnected());
+    
+    const messageToSend = newMessage.trim();
+    
+    // Clear message input immediately (optimistic update)
+    setNewMessage('');
+    
+    const success = socketService.sendMessage(selectedUserId, messageToSend);
+    
+    if (!success) {
+      console.log('❌ Failed to send message - restoring input');
+      setNewMessage(messageToSend);
+      toast.error('Failed to send message - please try again');
+    }
   };
 
   const handleTyping = (e) => {
@@ -234,8 +284,18 @@ const Messages = ({ isOpen, onClose }) => {
     setShowSidebar(true);
   };
 
+  const isUserOnline = (userId) => {
+    return onlineUsers.has(userId) || socketService.isUserOnline(userId);
+  };
+
   const filteredConversations = conversations.filter(conv =>
     conv.user.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Filter suggested users to exclude those with existing conversations
+  const filteredSuggestedUsers = suggestedUsers.filter(user =>
+    user.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+    !conversations.some(conv => conv.user._id === user._id)
   );
 
   const selectedUser = conversations.find(c => c.user._id === selectedUserId)?.user ||
@@ -311,10 +371,9 @@ const Messages = ({ isOpen, onClose }) => {
                       >
                         <div className="conversation-avatar">
                           <Avatar
-                            src={conversation.user.profilePic}
-                            name={conversation.user.name}
+                            user={conversation.user}
                             size="medium"
-                            showOnline={true}
+                            showOnline={isUserOnline(conversation.user._id)}
                           />
                           {conversation.count > 0 && (
                             <div className="unread-indicator">{conversation.count}</div>
@@ -353,13 +412,13 @@ const Messages = ({ isOpen, onClose }) => {
                 )}
 
                 {/* Suggested Users */}
-                {suggestedUsers.length > 0 && (
+                {filteredSuggestedUsers.length > 0 && (
                   <div className="conversations-section">
                     <div className="section-header">
                       <h3>Start New Conversation</h3>
                       <PersonAdd className="section-icon" />
                     </div>
-                    {suggestedUsers.map((user) => (
+                    {filteredSuggestedUsers.map((user) => (
                       <div
                         key={user._id}
                         className={`conversation-item suggested ${
@@ -369,10 +428,9 @@ const Messages = ({ isOpen, onClose }) => {
                       >
                         <div className="conversation-avatar">
                           <Avatar
-                            src={user.profilePic}
-                            name={user.name}
+                            user={user}
                             size="medium"
-                            showOnline={true}
+                            showOnline={isUserOnline(user._id)}
                           />
                         </div>
                         
@@ -390,7 +448,7 @@ const Messages = ({ isOpen, onClose }) => {
                 )}
 
                 {/* Empty State */}
-                {filteredConversations.length === 0 && suggestedUsers.length === 0 && !conversationsLoading && !suggestedLoading && (
+                {filteredConversations.length === 0 && filteredSuggestedUsers.length === 0 && !conversationsLoading && !suggestedLoading && (
                   <div className="empty-state">
                     <ChatBubbleOutline className="empty-icon" />
                     {conversationsError ? (
@@ -444,10 +502,9 @@ const Messages = ({ isOpen, onClose }) => {
                   </button>
                   
                   <Avatar
-                    src={selectedUser.profilePic}
-                    name={selectedUser.name}
+                    user={selectedUser}
                     size="medium"
-                    showOnline={true}
+                    showOnline={isUserOnline(selectedUserId)}
                   />
                   
                   <div className="user-info">
@@ -463,7 +520,9 @@ const Messages = ({ isOpen, onClose }) => {
                           Typing...
                         </span>
                       ) : (
-                        <span className="online-status">Online</span>
+                        <span className={`online-status ${isUserOnline(selectedUserId) ? 'online' : 'offline'}`}>
+                          {isUserOnline(selectedUserId) ? 'Online' : 'Offline'}
+                        </span>
                       )}
                     </div>
                   </div>
@@ -564,6 +623,7 @@ const Messages = ({ isOpen, onClose }) => {
                       onChange={handleTyping}
                       maxLength={1000}
                       className="message-input"
+                      autoComplete="off"
                     />
                     
                     <button 

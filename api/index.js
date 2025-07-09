@@ -17,19 +17,23 @@ import cors from "cors";
 import multer from "multer";
 import cookieParser from "cookie-parser";
 import jwt from "jsonwebtoken";
-import { checkFileType, logContentViolation } from "./utils/aiContentFilter.js";
+import {
+  checkFileType,
+  logContentViolation,
+  analyzeTextContent,
+} from "./utils/aiContentFilter.js";
 import { isUserBanned } from "./utils/adminDashboard.js";
 import {
   timeLimitMiddleware,
   markOffline,
 } from "./utils/timeLimitMiddleware.js";
 import { uploadToCloudinary } from "./utils/uploadToCloudinary.js";
-import { mongoose } from "./connect.js";
+import connectDB, { mongoose } from "./connect.js";
 import { canMessage } from "./controllers/message.js";
-import { filterUserContent } from "./utils/aiContentFilter.js";
 import Message from "./models/Message.js";
 
-// MongoDB connection is handled in connect.js
+// Ensure MongoDB connection is established
+console.log("🔄 Initializing MongoDB connection...");
 
 // Initialize Socket.IO
 const io = new Server(server, {
@@ -68,14 +72,51 @@ io.on("connection", (socket) => {
   // Join user to their own room
   socket.join(socket.userId);
 
+  // Broadcast user online status to all connected users
+  socket.broadcast.emit("user_online", {
+    userId: socket.userId,
+    isOnline: true,
+  });
+
   // Handle sending messages
   socket.on("send_message", async (data) => {
     try {
       const { receiverId, content } = data;
 
+      console.log(`📨 Received message data:`, {
+        receiverId,
+        content: content ? `"${content}"` : "MISSING",
+        contentLength: content ? content.length : 0,
+        senderId: socket.userId,
+      });
+
+      // Validate required fields
+      if (!receiverId) {
+        console.log(`❌ Missing receiverId`);
+        socket.emit("message_error", {
+          error: "Receiver ID is required",
+        });
+        return;
+      }
+
+      if (!content || typeof content !== "string" || !content.trim()) {
+        console.log(`❌ Invalid content:`, { content, type: typeof content });
+        socket.emit("message_error", {
+          error: "Message content is required",
+        });
+        return;
+      }
+
+      console.log(
+        `📨 Attempting to send message from ${socket.userId} to ${receiverId}`
+      );
+
       // Check if sender can message receiver
       const canSendMessage = await canMessage(socket.userId, receiverId);
       if (!canSendMessage) {
+        console.log(
+          `❌ User ${socket.userId} cannot message ${receiverId} - not following`
+        );
         socket.emit("message_error", {
           error: "You can only message users you follow",
         });
@@ -83,14 +124,16 @@ io.on("connection", (socket) => {
       }
 
       // Filter content
-      const filteredContent = await filterUserContent(
-        content.trim(),
-        "message"
-      );
-      if (filteredContent.blocked) {
+      const filteredContent = await analyzeTextContent(content.trim(), {
+        contentType: "message",
+      });
+      if (!filteredContent.isClean) {
+        console.log(
+          `❌ Message blocked due to content: ${filteredContent.severity}`
+        );
         socket.emit("message_error", {
           error: "Message contains inappropriate content",
-          reason: filteredContent.reason,
+          reason: filteredContent.severity,
         });
         return;
       }
@@ -99,22 +142,30 @@ io.on("connection", (socket) => {
       const message = new Message({
         senderId: socket.userId,
         receiverId,
-        content: filteredContent.content,
+        content: content.trim(), // Use original content since it passed filtering
         messageType: "text",
       });
 
       const savedMessage = await message.save();
+      console.log(`💾 Message saved: ${savedMessage._id}`);
+
       const populatedMessage = await Message.findById(savedMessage._id)
         .populate("senderId", "name username profilePic")
         .populate("receiverId", "name username profilePic");
 
       // Send to sender
       socket.emit("message_sent", populatedMessage);
+      console.log(`✅ Message sent confirmation to sender`);
 
       // Send to receiver if online
       const receiverSocketId = connectedUsers.get(receiverId);
       if (receiverSocketId) {
         io.to(receiverSocketId).emit("new_message", populatedMessage);
+        console.log(`📬 Message delivered to receiver`);
+      } else {
+        console.log(
+          `📤 Receiver ${receiverId} is offline, message saved for later`
+        );
       }
 
       console.log(`💬 Message sent from ${socket.userId} to ${receiverId}`);
@@ -122,6 +173,7 @@ io.on("connection", (socket) => {
       console.error("Socket message error:", error);
       socket.emit("message_error", {
         error: "Failed to send message",
+        details: error.message,
       });
     }
   });
@@ -147,10 +199,22 @@ io.on("connection", (socket) => {
     }
   });
 
+  // Handle get online users request
+  socket.on("get_online_users", () => {
+    const onlineUserIds = Array.from(connectedUsers.keys());
+    socket.emit("online_users", onlineUserIds);
+  });
+
   // Handle disconnect
   socket.on("disconnect", () => {
     console.log(`🔌 User ${socket.userId} disconnected`);
     connectedUsers.delete(socket.userId);
+
+    // Broadcast user offline status to all connected users
+    socket.broadcast.emit("user_offline", {
+      userId: socket.userId,
+      isOnline: false,
+    });
   });
 });
 
@@ -209,7 +273,12 @@ app.post("/api/upload", async (req, res) => {
           gravity: transform_gravity,
         };
 
-        const uploadedUrl = await uploadToCloudinary(file, transformations);
+        const uploadedUrl = await uploadToCloudinary(
+          file,
+          "upload.jpg",
+          "posivibe/uploads",
+          transformations
+        );
         res.status(200).json(uploadedUrl);
       } catch (error) {
         console.error("Upload error:", error);

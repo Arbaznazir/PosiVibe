@@ -107,7 +107,7 @@ const Register = () => {
             <div className="form-header">
               <div className="brand">
                 <div className="logo">
-                  <div className="logo-icon">P</div>
+                  <img src="/logo.png" alt="PosiVibe" className="logo-icon" />
                   <span className="logo-text">PosiVibe</span>
                 </div>
               </div>

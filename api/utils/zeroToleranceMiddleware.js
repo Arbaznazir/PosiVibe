@@ -102,7 +102,7 @@ const smartContentFilter = async (filterFunction, data, context) => {
 
 /**
  * Zero tolerance middleware for posts
- * Completely blocks any content that fails moderation
+ * Shows user-friendly popup instead of blocking users
  */
 export const zeroTolerancePostFilter = async (req, res, next) => {
   try {
@@ -120,62 +120,57 @@ export const zeroTolerancePostFilter = async (req, res, next) => {
     );
 
     if (!filterResult.isClean && filterResult.reason !== "legitimate_content") {
-      // Log the violation
+      // Log the violation for admin review but don't block user
       await logContentViolation("post", req.userId, filterResult, postData);
 
-      console.log("🚫 BLOCKED: Post contains inappropriate content");
-      console.log("Violations:", filterResult.violations);
-
-      // Check if any violations are critical (zero tolerance)
-      const hasCriticalViolation = filterResult.violations?.some(
-        (v) => v.severity === "critical"
+      console.log(
+        "⚠️  Content moderation triggered - showing user-friendly message"
       );
 
-      // Only clear session for critical violations
-      if (hasCriticalViolation) {
-        res.clearCookie("accessToken", {
-          secure: true,
-          sameSite: "none",
-        });
-      }
-
+      // Return user-friendly popup message instead of blocking
       return res.status(400).json({
         success: false,
-        message: hasCriticalViolation
-          ? "Your account has been logged out due to a critical content violation. An administrator will review your account."
-          : "Your post contains inappropriate content that violates our community guidelines. Please review your content and try again with appropriate material.",
+        showPopup: true,
+        popupType: "content_moderation",
+        title: "Content Guidelines Notice",
+        message:
+          "We appreciate your contribution to our community! However, this content doesn't align with our community guidelines as we strive to maintain a clean and positive environment for everyone.",
+        details:
+          "We're working to keep PosiVibe a safe and welcoming space. Please consider revising your post to ensure it meets our community standards.",
         severity: filterResult.severity,
-        accountAction: hasCriticalViolation ? "logged_out" : "warning",
-        violations:
-          filterResult.violations?.map((v) => ({
-            type: v.type,
-            reason: v.reason || "Content policy violation",
-            severity: v.severity,
-          })) || [],
+        actionRequired: false, // Don't require any action from user
+        canRetry: true,
+        suggestions: [
+          "Use positive and encouraging language",
+          "Share content that inspires and uplifts",
+          "Avoid controversial or inappropriate topics",
+          "Focus on building meaningful connections",
+        ],
         policy: {
           message:
-            "This platform maintains a zero-tolerance policy for inappropriate content",
+            "Our platform promotes positive interactions and clean content",
           categories: [
-            "18+ adult content",
-            "Sexual or suggestive material",
-            "Profanity and offensive language",
-            "Hate speech and discrimination",
-            "Violence and threats",
-            "Spam and commercial exploitation",
-            "Drug-related content",
-            "Inappropriate images",
+            "Family-friendly content only",
+            "Respectful language and interactions",
+            "Positive and uplifting messages",
+            "No inappropriate or offensive material",
           ],
         },
       });
     }
 
-    console.log("✅ Post passed zero tolerance filter");
+    console.log("✅ Post passed content guidelines check");
     next();
   } catch (error) {
-    console.error("Zero tolerance filter error:", error);
+    console.error("Content moderation error:", error);
     return res.status(500).json({
       success: false,
-      message: "Content moderation system error. Post blocked for safety.",
+      showPopup: true,
+      popupType: "system_error",
+      title: "System Notice",
+      message:
+        "We're temporarily unable to process your content. Please try again in a moment.",
+      canRetry: true,
     });
   }
 };
@@ -189,7 +184,7 @@ export const zeroToleranceCommentFilter = async (req, res, next) => {
       desc: req.body.desc,
     };
 
-    console.log("🛡️  Zero Tolerance Filter: Analyzing comment content...");
+    console.log("🛡️  Content moderation: Analyzing comment content...");
 
     const filterResult = await smartContentFilter(
       filterCommentContent,
@@ -205,34 +200,43 @@ export const zeroToleranceCommentFilter = async (req, res, next) => {
         commentData
       );
 
-      console.log("🚫 BLOCKED: Comment contains inappropriate content");
+      console.log(
+        "⚠️  Comment moderation triggered - showing user-friendly message"
+      );
 
       return res.status(400).json({
         success: false,
+        showPopup: true,
+        popupType: "content_moderation",
+        title: "Comment Guidelines Notice",
         message:
-          "Your comment contains inappropriate content that violates our community guidelines. Please keep comments respectful and appropriate.",
+          "Thank you for engaging with our community! We noticed your comment might not align with our positive community standards.",
+        details:
+          "We encourage respectful and uplifting conversations that make everyone feel welcome.",
         severity: filterResult.severity,
-        violations: filterResult.violations?.map((v) => ({
-          type: v.type,
-          reason: v.reason || "Content policy violation",
-          severity: v.severity,
-        })) || [
-          {
-            type: "content_violation",
-            reason: filterResult.reason || "Inappropriate content detected",
-            severity: filterResult.severity,
-          },
+        actionRequired: false,
+        canRetry: true,
+        suggestions: [
+          "Keep comments respectful and kind",
+          "Focus on constructive feedback",
+          "Spread positivity and encouragement",
+          "Build meaningful discussions",
         ],
       });
     }
 
-    console.log("✅ Comment passed zero tolerance filter");
+    console.log("✅ Comment passed content guidelines check");
     next();
   } catch (error) {
-    console.error("Zero tolerance comment filter error:", error);
+    console.error("Content moderation error:", error);
     return res.status(500).json({
       success: false,
-      message: "Content moderation system error. Comment blocked for safety.",
+      showPopup: true,
+      popupType: "system_error",
+      title: "System Notice",
+      message:
+        "We're temporarily unable to process your comment. Please try again in a moment.",
+      canRetry: true,
     });
   }
 };
@@ -248,7 +252,7 @@ export const zeroToleranceUserFilter = async (req, res, next) => {
       website: req.body.website,
     };
 
-    console.log("🛡️  Zero Tolerance Filter: Analyzing user profile content...");
+    console.log("🛡️  Content moderation: Analyzing user profile content...");
 
     const filterResult = await smartContentFilter(
       filterUserContent,
@@ -264,30 +268,43 @@ export const zeroToleranceUserFilter = async (req, res, next) => {
         userData
       );
 
-      console.log("🚫 BLOCKED: User profile contains inappropriate content");
+      console.log(
+        "⚠️  Profile moderation triggered - showing user-friendly message"
+      );
 
       return res.status(400).json({
         success: false,
+        showPopup: true,
+        popupType: "content_moderation",
+        title: "Profile Guidelines Notice",
         message:
-          "Your profile information contains inappropriate content that violates our community guidelines. Please use appropriate language and content.",
+          "We want to help you create the best profile possible! Some of the information you entered might not align with our community guidelines.",
+        details:
+          "A great profile helps you connect with others and represents the positive spirit of our community.",
         severity: filterResult.severity,
-        violations:
-          filterResult.violations?.map((v) => ({
-            type: v.type,
-            reason: v.reason || "Content policy violation",
-            severity: v.severity,
-          })) || [],
+        actionRequired: false,
+        canRetry: true,
+        suggestions: [
+          "Use your real name or a positive username",
+          "Share appropriate and inspiring information",
+          "Keep website links family-friendly",
+          "Represent your authentic, positive self",
+        ],
       });
     }
 
-    console.log("✅ User profile passed zero tolerance filter");
+    console.log("✅ User profile passed content guidelines check");
     next();
   } catch (error) {
-    console.error("Zero tolerance user filter error:", error);
+    console.error("Content moderation error:", error);
     return res.status(500).json({
       success: false,
+      showPopup: true,
+      popupType: "system_error",
+      title: "System Notice",
       message:
-        "Content moderation system error. Profile update blocked for safety.",
+        "We're temporarily unable to process your profile update. Please try again in a moment.",
+      canRetry: true,
     });
   }
 };

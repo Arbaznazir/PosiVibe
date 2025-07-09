@@ -6,6 +6,7 @@ import { AuthContext } from "../../context/authContext";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { makeRequest } from "../../axios";
 import ImageCropper from "../imageCropper/ImageCropper";
+import ContentModerationPopup from "../contentModerationPopup/ContentModerationPopup";
 import { IMAGE_TYPES } from "../../utils/imageProcessing";
 import CloseIcon from '@mui/icons-material/Close';
 import toast from 'react-hot-toast';
@@ -15,6 +16,14 @@ const Share = () => {
   const [file, setFile] = useState(null);
   const [desc, setDesc] = useState("");
   const [showCropper, setShowCropper] = useState(false);
+  const [moderationPopup, setModerationPopup] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    details: "",
+    suggestions: [],
+    severity: "medium"
+  });
   const fileRef = useRef();
 
   const queryClient = useQueryClient();
@@ -38,28 +47,33 @@ const Share = () => {
     },
     {
       onSuccess: (response) => {
-        if (response.data.trustScore !== undefined) {
-          // Show trust score feedback
-          const score = response.data.trustScore;
-          let message = `Post created. Your trust score: ${score}`;
-          if (score < 50) {
-            message += ". Please be mindful of our community guidelines.";
-          }
-          toast.success(message);
-        } else {
+        // Always show simple success message, no trust score
           toast.success("Post created successfully!");
-        }
         
         setDesc("");
         setFile(null);
         queryClient.invalidateQueries(["posts"]);
       },
       onError: (error) => {
-        const message = error?.response?.data?.message || "Error creating post";
-        toast.error(message);
-        if (error?.response?.data?.trustScore !== undefined) {
-          toast.error(`Trust score reduced to: ${error.response.data.trustScore}`);
+        const responseData = error?.response?.data;
+        
+        // Check if this is a content moderation popup
+        if (responseData?.showPopup && responseData?.popupType === "content_moderation") {
+          setModerationPopup({
+            isOpen: true,
+            title: responseData.title || "Content Guidelines Notice",
+            message: responseData.message || "Your content doesn't meet our community guidelines.",
+            details: responseData.details,
+            suggestions: responseData.suggestions || [],
+            severity: responseData.severity || "medium"
+          });
+          return;
         }
+        
+        // Handle other errors normally
+        const message = responseData?.message || "Error creating post";
+        toast.error(message);
+        // Remove trust score display from error messages
       },
     }
   );
@@ -96,6 +110,10 @@ const Share = () => {
     if (fileRef.current) {
       fileRef.current.value = "";
     }
+  };
+
+  const handleCloseModerationPopup = () => {
+    setModerationPopup(prev => ({ ...prev, isOpen: false }));
   };
 
   return (
@@ -143,6 +161,7 @@ const Share = () => {
           </div>
         </div>
       </div>
+      
       {showCropper && file && (
         <ImageCropper
           imageUrl={URL.createObjectURL(file)}
@@ -151,6 +170,17 @@ const Share = () => {
           onCancel={handleCloseCropper}
         />
       )}
+
+      <ContentModerationPopup
+        isOpen={moderationPopup.isOpen}
+        onClose={handleCloseModerationPopup}
+        title={moderationPopup.title}
+        message={moderationPopup.message}
+        details={moderationPopup.details}
+        suggestions={moderationPopup.suggestions}
+        severity={moderationPopup.severity}
+        canRetry={true}
+      />
     </div>
   );
 };

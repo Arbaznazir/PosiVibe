@@ -65,6 +65,28 @@ const UserSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    // Verification system
+    isVerified: {
+      type: Boolean,
+      default: false,
+    },
+    verificationBadge: {
+      type: String,
+      enum: ["none", "green", "blue", "gold", "owner", "red"],
+      default: "none",
+    },
+    verificationReason: {
+      type: String,
+      default: "",
+    },
+    verifiedBy: {
+      type: String, // Changed from ObjectId to String to allow "system"
+      default: null,
+    },
+    verificationDate: {
+      type: Date,
+      default: null,
+    },
   },
   { timestamps: true }
 );

@@ -21,7 +21,7 @@ export const getNotifications = async (req, res) => {
 
       try {
         const limit = parseInt(req.query.limit) || 20;
-        const notifications = getNotificationsForUser(userInfo.id, limit);
+        const notifications = await getNotificationsForUser(userInfo.id, limit);
 
         return res.json(notifications);
       } catch (err) {
@@ -46,7 +46,7 @@ export const getUnreadCount = async (req, res) => {
       if (err) return res.status(403).json("Token is not valid!");
 
       try {
-        const count = getUnreadNotificationCount(userInfo.id);
+        const count = await getUnreadNotificationCount(userInfo.id);
         return res.json({ count });
       } catch (err) {
         console.error("Get unread count error:", err);
@@ -70,8 +70,11 @@ export const markAsRead = async (req, res) => {
       if (err) return res.status(403).json("Token is not valid!");
 
       try {
-        const notificationId = parseInt(req.params.id);
-        const success = markNotificationAsRead(notificationId, userInfo.id);
+        const notificationId = req.params.id;
+        const success = await markNotificationAsRead(
+          notificationId,
+          userInfo.id
+        );
 
         if (success) {
           return res.json({ message: "Notification marked as read" });
@@ -100,7 +103,7 @@ export const markAllAsRead = async (req, res) => {
       if (err) return res.status(403).json("Token is not valid!");
 
       try {
-        const count = markAllNotificationsAsRead(userInfo.id);
+        const count = await markAllNotificationsAsRead(userInfo.id);
         return res.json({
           message: `Marked ${count} notifications as read`,
           count,

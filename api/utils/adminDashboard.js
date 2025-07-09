@@ -15,7 +15,7 @@ export const addViolation = (violation) => {
     timestamp: new Date().toISOString(),
   });
 
-  // Auto-flag users with multiple violations
+  // Auto-flag users with multiple violations for admin review
   const userViolations = contentViolations.filter(
     (v) => v.userId === violation.userId
   );
@@ -23,13 +23,21 @@ export const addViolation = (violation) => {
     flagUser(violation.userId, "Multiple content violations");
   }
 
-  // Auto-ban users with critical violations
+  // Log critical violations but don't auto-ban (use popup system instead)
   if (violation.severity === "critical") {
     const criticalViolations = userViolations.filter(
       (v) => v.severity === "critical"
     );
-    if (criticalViolations.length >= 1) {
-      banUser(violation.userId, "Critical content violation", "system");
+    console.log(
+      `⚠️ Critical violation detected for user ${violation.userId}: ${criticalViolations.length} total critical violations`
+    );
+
+    // Flag for admin review after multiple critical violations
+    if (criticalViolations.length >= 3) {
+      flagUser(
+        violation.userId,
+        "Multiple critical content violations - requires admin review"
+      );
     }
   }
 };

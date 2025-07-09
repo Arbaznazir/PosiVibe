@@ -5,14 +5,28 @@ import Relationship from "../models/Relationship.js";
 import User from "../models/User.js";
 import { filterUserContent } from "../utils/aiContentFilter.js";
 
-// Check if user can message another user (must follow them)
+// Check if user can message another user (must follow them or have existing conversation)
 export const canMessage = async (senderId, receiverId) => {
   try {
+    // Allow messaging if sender follows receiver
     const relationship = await Relationship.findOne({
       followerUserId: senderId,
       followedUserId: receiverId,
     });
-    return !!relationship;
+
+    if (relationship) {
+      return true;
+    }
+
+    // Also allow messaging if they have an existing conversation
+    const existingConversation = await Message.findOne({
+      $or: [
+        { senderId: senderId, receiverId: receiverId },
+        { senderId: receiverId, receiverId: senderId },
+      ],
+    });
+
+    return !!existingConversation;
   } catch (error) {
     console.error("Error checking message permission:", error);
     return false;

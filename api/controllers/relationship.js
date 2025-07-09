@@ -155,7 +155,7 @@ export const addRelationship = async (req, res) => {
         console.log("Relationship created:", newRelationship);
 
         // Create follow notification
-        createFollowNotification(userInfo.id, req.body.userId);
+        await createFollowNotification(userInfo.id, req.body.userId);
 
         return res.status(200).json("Following");
       } catch (err) {

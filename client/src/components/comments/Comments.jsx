@@ -9,6 +9,7 @@ import {
 } from "@mui/icons-material";
 import toast from 'react-hot-toast';
 import Avatar from "../avatar/Avatar";
+import VerificationBadge from "../verificationBadge/VerificationBadge";
 
 const Comments = ({ postId }) => {
   const [desc, setDesc] = useState("");
@@ -85,7 +86,12 @@ const Comments = ({ postId }) => {
               />
               <div className="info">
                 <div className="comment-header">
+                  <div className="name-container">
                   <span className="name">{comment.name}</span>
+                    {comment.verificationBadge && (
+                      <VerificationBadge badge={comment.verificationBadge} size="small" />
+                    )}
+                  </div>
                   <span className="date">{moment(comment.createdAt).fromNow()}</span>
                 </div>
                 <p className="comment-text">{comment.desc}</p>

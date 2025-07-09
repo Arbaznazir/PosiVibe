@@ -1,23 +1,38 @@
 import { cloudinary } from "../config/cloudinary.js";
 
-export const uploadToCloudinary = async (file, transformations = {}) => {
+export const uploadToCloudinary = async (
+  fileBuffer,
+  filename,
+  folder = "posivibe",
+  transformations = {}
+) => {
   try {
-    // Handle FormData file or base64 string
-    let uploadData = file;
+    console.log("📤 Cloudinary upload starting:", {
+      filename,
+      folder,
+      bufferSize: fileBuffer ? fileBuffer.length : 0,
+      transformations,
+    });
 
-    // If it's FormData, extract the base64 data
-    if (file.startsWith("data:")) {
-      uploadData = file;
-    } else {
-      // Convert buffer to base64 if it's not already
-      const base64Image = Buffer.from(file).toString("base64");
+    // Handle different input types
+    let uploadData;
+
+    if (typeof fileBuffer === "string" && fileBuffer.startsWith("data:")) {
+      // Already base64 data URL
+      uploadData = fileBuffer;
+    } else if (Buffer.isBuffer(fileBuffer)) {
+      // Convert buffer to base64 data URL
+      const base64Image = fileBuffer.toString("base64");
       uploadData = `data:image/jpeg;base64,${base64Image}`;
+    } else {
+      throw new Error("Invalid file data format");
     }
 
     // Upload to Cloudinary with transformations
     const result = await cloudinary.uploader.upload(uploadData, {
-      folder: "posivibe",
+      folder: folder,
       resource_type: "auto",
+      public_id: filename ? filename.split(".")[0] : undefined, // Use filename without extension
       transformation: [
         {
           width: transformations.width || 800,
@@ -30,9 +45,24 @@ export const uploadToCloudinary = async (file, transformations = {}) => {
       ],
     });
 
-    return result.secure_url;
+    console.log("✅ Cloudinary upload successful:", {
+      public_id: result.public_id,
+      secure_url: result.secure_url,
+      width: result.width,
+      height: result.height,
+      format: result.format,
+      bytes: result.bytes,
+    });
+
+    return result; // Return full result object
   } catch (error) {
-    console.error("Cloudinary upload error:", error);
+    console.error("❌ Cloudinary upload error:", {
+      error: error.message,
+      stack: error.stack,
+      filename,
+      folder,
+      bufferSize: fileBuffer ? fileBuffer.length : 0,
+    });
     throw error;
   }
 };

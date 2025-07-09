@@ -6,14 +6,14 @@ import {
   Favorite,
   ChatBubble,
   Share,
-  PersonAddAlt1,
-  Verified
+  PersonAddAlt1
 } from "@mui/icons-material";
 import { useContext } from "react";
 import { AuthContext } from "../../context/authContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { makeRequest } from "../../axios";
 import Avatar from "../avatar/Avatar";
+import VerificationBadge from "../verificationBadge/VerificationBadge";
 import toast from 'react-hot-toast';
 
 const RightBar = () => {
@@ -150,7 +150,9 @@ const RightBar = () => {
                     <div className="details">
                       <div className="name">
                         {user.name}
-                        {user.isVerified && <Verified className="verified" />}
+                        {user.verificationBadge && (
+                          <VerificationBadge badge={user.verificationBadge} size="small" />
+                        )}
                       </div>
                       <div className="subtitle">
                         <span className="mutual-count">{user.mutualFriends}</span> mutual friends

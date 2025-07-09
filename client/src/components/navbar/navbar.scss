@@ -15,6 +15,18 @@
   }
 }
 
+@keyframes timerPulse {
+  0% {
+    background-color: rgba(255, 107, 107, 0.1);
+  }
+  50% {
+    background-color: rgba(255, 107, 107, 0.2);
+  }
+  100% {
+    background-color: rgba(255, 107, 107, 0.1);
+  }
+}
+
 .navbar {
   @include themify($themes) {
     display: flex;
@@ -30,23 +42,84 @@
     background-color: themed("bg");
     color: themed("textColor");
     z-index: 999;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 
     @include mobile {
       padding: 0 10px;
       height: 50px;
     }
 
+    @include small-mobile {
+      padding: 0 8px;
+      height: 48px;
+    }
+
+    // Adjust for when dev tools might be open
+    @include dev-tools-open {
+      padding: 0 15px;
+    }
+
     .left {
       display: flex;
       align-items: center;
       gap: 30px;
+      flex: 1;
+      min-width: 0;
+
+      @include mobile {
+        gap: 15px;
+      }
+
+      @include small-mobile {
+        gap: 10px;
+      }
+
+      @include dev-tools-open {
+        gap: 20px;
+      }
 
       .logo {
+        display: flex;
+        align-items: center;
+        gap: 8px;
         font-weight: bold;
         font-size: 24px;
         color: themed("accent");
         text-decoration: none;
         transition: all 0.3s ease;
+        white-space: nowrap;
+        flex-shrink: 0;
+
+        .logo-image {
+          width: 32px;
+          height: 32px;
+          object-fit: contain;
+          
+          @include mobile {
+            width: 28px;
+            height: 28px;
+          }
+
+          @include small-mobile {
+            width: 24px;
+            height: 24px;
+          }
+
+          @include dev-tools-open {
+            width: 28px;
+            height: 28px;
+          }
+        }
+
+        .logo-text {
+          @include mobile {
+            display: none;
+          }
+
+          @include dev-tools-open {
+            display: none;
+          }
+        }
 
         &:hover {
           transform: scale(1.05);
@@ -56,9 +129,18 @@
         @include mobile {
           font-size: 20px;
         }
+
+        @include small-mobile {
+          font-size: 18px;
+        }
+
+        @include dev-tools-open {
+          font-size: 20px;
+        }
       }
 
       .search {
+        position: relative;
         display: flex;
         align-items: center;
         gap: 10px;
@@ -67,7 +149,9 @@
         border-radius: 20px;
         background-color: themed("bgSoft");
         width: 300px;
+        max-width: 100%;
         transition: all 0.3s ease;
+        flex-shrink: 1;
 
         &:focus-within {
           border-color: themed("accent");
@@ -78,6 +162,12 @@
         svg {
           color: themed("textColorSoft");
           font-size: 20px;
+          flex-shrink: 0;
+        }
+
+        form {
+          width: 100%;
+          display: flex;
         }
 
         input {
@@ -87,14 +177,86 @@
           color: themed("textColor");
           outline: none;
           font-size: 14px;
+          min-width: 0;
 
           &::placeholder {
             color: themed("textColorSoft");
           }
         }
 
+        .search-results {
+          position: absolute;
+          top: 100%;
+          left: 0;
+          right: 0;
+          background-color: themed("bg");
+          border: 1px solid themed("border");
+          border-radius: 12px;
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+          z-index: 1000;
+          max-height: 300px;
+          overflow-y: auto;
+          margin-top: 4px;
+
+          .search-result-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border-bottom: 1px solid themed("border");
+
+            &:last-child {
+              border-bottom: none;
+            }
+
+            &:hover {
+              background-color: themed("bgSoft");
+            }
+
+            .user-info {
+              flex: 1;
+              min-width: 0;
+
+              .user-name {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                margin-bottom: 2px;
+
+                .name {
+                  font-weight: 600;
+                  color: themed("textColor");
+                  font-size: 14px;
+                }
+              }
+
+              .username {
+                color: themed("textColorSoft");
+                font-size: 12px;
+              }
+            }
+
+            .following-indicator {
+              color: themed("accent");
+              font-size: 12px;
+              font-weight: 500;
+              background-color: rgba(themed("accent"), 0.1);
+              padding: 2px 8px;
+              border-radius: 12px;
+              flex-shrink: 0;
+            }
+          }
+        }
+
         @include mobile {
           display: none;
+        }
+
+        @include dev-tools-open {
+          width: 200px;
+          padding: 6px 12px;
         }
       }
     }
@@ -103,6 +265,19 @@
       display: flex;
       align-items: center;
       gap: 20px;
+      flex-shrink: 0;
+
+      @include mobile {
+        gap: 10px;
+      }
+
+      @include small-mobile {
+        gap: 8px;
+      }
+
+      @include dev-tools-open {
+        gap: 15px;
+      }
 
       .nav-link {
         display: flex;
@@ -114,6 +289,7 @@
         padding: 8px 12px;
         border-radius: 20px;
         transition: all 0.2s ease;
+        white-space: nowrap;
 
         svg {
           font-size: 20px;
@@ -122,6 +298,10 @@
 
         span {
           @include mobile {
+            display: none;
+          }
+
+          @include dev-tools-open {
             display: none;
           }
         }
@@ -133,6 +313,14 @@
 
         @include mobile {
           padding: 8px;
+        }
+
+        @include small-mobile {
+          padding: 6px;
+        }
+
+        @include dev-tools-open {
+          padding: 6px 8px;
         }
       }
 
@@ -148,6 +336,7 @@
         color: themed("textColorSoft");
         cursor: pointer;
         transition: all 0.3s ease;
+        flex-shrink: 0;
 
         &:hover {
           background-color: themed("bg");
@@ -164,6 +353,155 @@
           svg {
             font-size: 16px;
           }
+        }
+
+        @include small-mobile {
+          width: 28px;
+          height: 28px;
+          svg {
+            font-size: 14px;
+          }
+        }
+
+        @include dev-tools-open {
+          width: 32px;
+          height: 32px;
+          svg {
+            font-size: 16px;
+          }
+        }
+      }
+
+      // Timer Display
+      .timer-display {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 12px;
+        border-radius: 20px;
+        background-color: themed("bgSoft");
+        border: 1px solid themed("border");
+        transition: all 0.3s ease;
+        flex-shrink: 0;
+
+        svg {
+          font-size: 18px;
+          color: themed("textColorSoft");
+        }
+
+        .time-text {
+          font-size: 13px;
+          font-weight: 600;
+          color: themed("textColor");
+          font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+          letter-spacing: 0.5px;
+        }
+
+        &.low {
+          border-color: #fbbf24;
+          background-color: rgba(251, 191, 36, 0.1);
+          
+          svg, .time-text {
+            color: #f59e0b;
+          }
+        }
+
+        &.warning {
+          border-color: #f97316;
+          background-color: rgba(249, 115, 22, 0.1);
+          animation: pulse 2s infinite;
+          
+          svg, .time-text {
+            color: #ea580c;
+          }
+        }
+
+        &.critical {
+          border-color: #ef4444;
+          background-color: rgba(239, 68, 68, 0.1);
+          animation: timerPulse 1s infinite;
+          
+          svg, .time-text {
+            color: #dc2626;
+          }
+        }
+
+        @include mobile {
+          padding: 6px 8px;
+          
+          .time-text {
+            font-size: 12px;
+          }
+          
+          svg {
+            font-size: 16px;
+          }
+        }
+      }
+
+      // Navigation Items (Messages, Notifications)
+      .nav-item {
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: themed("textColor");
+        font-size: 14px;
+        padding: 8px 12px;
+        border-radius: 20px;
+        transition: all 0.2s ease;
+        cursor: pointer;
+        white-space: nowrap;
+        flex-shrink: 0;
+
+        svg {
+          font-size: 20px;
+          color: themed("textColorSoft");
+        }
+
+        span:not(.counter) {
+          @include mobile {
+            display: none;
+          }
+
+          @include dev-tools-open {
+            display: none;
+          }
+        }
+
+        &:hover {
+          background-color: themed("bgSoft");
+          transform: translateY(-1px);
+        }
+
+        .counter {
+          position: absolute;
+          top: -2px;
+          right: -2px;
+          background-color: themed("accent");
+          color: white;
+          font-size: 11px;
+          padding: 2px 6px;
+          border-radius: 10px;
+          font-weight: 600;
+          min-width: 18px;
+          height: 18px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          animation: pulse 2s infinite;
+        }
+
+        @include mobile {
+          padding: 8px;
+        }
+
+        @include small-mobile {
+          padding: 6px;
+        }
+
+        @include dev-tools-open {
+          padding: 6px 8px;
         }
       }
 
@@ -222,6 +560,7 @@
         padding: 6px 12px;
         border-radius: 20px;
         transition: all 0.2s ease;
+        flex-shrink: 0;
 
         &:hover {
           background-color: themed("bgSoft");
@@ -235,6 +574,22 @@
           @include mobile {
             display: none;
           }
+
+          @include dev-tools-open {
+            display: none;
+          }
+        }
+
+        @include mobile {
+          padding: 4px 8px;
+        }
+
+        @include small-mobile {
+          padding: 4px 6px;
+        }
+
+        @include dev-tools-open {
+          padding: 4px 8px;
         }
 
         .menu-dropdown {
@@ -248,6 +603,15 @@
           width: 200px;
           overflow: hidden;
           animation: slideDown 0.2s ease-out;
+          z-index: 1000;
+
+          @include mobile {
+            width: 180px;
+          }
+
+          @include small-mobile {
+            width: 160px;
+          }
 
           .menu-item {
             display: flex;
@@ -264,7 +628,7 @@
             transition: all 0.2s ease;
 
             svg {
-              font-size: 20px;
+              font-size: 18px;
               color: themed("textColorSoft");
             }
 
@@ -278,10 +642,16 @@
               svg {
                 color: themed("danger");
               }
-
-              &:hover {
-                background-color: themed("bgSoft");
               }
+
+            @include mobile {
+              padding: 10px 12px;
+              font-size: 13px;
+              }
+
+            @include small-mobile {
+              padding: 8px 10px;
+              font-size: 12px;
             }
           }
         }
@@ -366,6 +736,79 @@
       height: 1px;
       background: themed("border");
       margin: 8px 0;
+    }
+  }
+}
+
+// Search results styles
+.search {
+  position: relative;
+
+  .search-results {
+    @include themify($themes) {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background-color: themed("bg");
+      border: 1px solid themed("border");
+      border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+      z-index: 1000;
+      max-height: 300px;
+      overflow-y: auto;
+      margin-top: 4px;
+
+      .search-result-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 16px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border-bottom: 1px solid themed("border");
+
+        &:last-child {
+          border-bottom: none;
+        }
+
+        &:hover {
+          background-color: themed("bgSoft");
+        }
+
+        .user-info {
+          flex: 1;
+          min-width: 0;
+
+          .user-name {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 2px;
+
+            .name {
+              font-weight: 600;
+              color: themed("textColor");
+              font-size: 14px;
+            }
+          }
+
+          .username {
+            color: themed("textColorSoft");
+            font-size: 12px;
+          }
+        }
+
+        .following-indicator {
+          color: themed("accent");
+          font-size: 12px;
+          font-weight: 500;
+          background-color: rgba(themed("accent"), 0.1);
+          padding: 2px 8px;
+          border-radius: 12px;
+          flex-shrink: 0;
+        }
+      }
     }
   }
 }

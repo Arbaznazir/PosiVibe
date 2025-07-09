@@ -1,12 +1,19 @@
 import { useState } from "react";
 import "./avatar.scss";
 import ImageCropper from "../imageCropper/ImageCropper";
+import VerificationBadge from "../verificationBadge/VerificationBadge";
 import { makeRequest } from "../../axios";
 import { IMAGE_TYPES, PROFILE_RATIO, validateImage } from "../../utils/imageProcessing";
 import EditIcon from '@mui/icons-material/Edit';
 import PersonIcon from '@mui/icons-material/Person';
 
-const Avatar = ({ user = null, size = "medium", editable = false }) => {
+const Avatar = ({ 
+  user = null, 
+  size = "medium", 
+  editable = false, 
+  showOnline = false,
+  showVerification = false // Changed default to false
+}) => {
   const [showCropper, setShowCropper] = useState(false);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [error, setError] = useState(null);
@@ -121,15 +128,29 @@ const Avatar = ({ user = null, size = "medium", editable = false }) => {
   };
 
   return (
-    <div className={`avatar ${size}`}>
-      {user?.profilePic && !imageError ? (
-        <img 
-          src={user.profilePic} 
-          alt={user.name || 'Profile'} 
-          onError={handleImageError}
+    <div className={`avatar ${size} ${showOnline ? 'online' : ''}`}>
+      <div className="avatar-image">
+        {user?.profilePic && !imageError ? (
+          <img 
+            src={user.profilePic} 
+            alt={user.name || 'Profile'} 
+            onError={handleImageError}
+          />
+        ) : (
+          getDefaultAvatar()
+        )}
+        
+        {showOnline && (
+          <div className="online-indicator"></div>
+        )}
+      </div>
+      
+      {showVerification && user?.verificationBadge && (
+        <VerificationBadge 
+          badge={user.verificationBadge} 
+          size={size === 'large' ? 'medium' : 'small'}
+          className="avatar-verification"
         />
-      ) : (
-        getDefaultAvatar()
       )}
       
       {editable && (

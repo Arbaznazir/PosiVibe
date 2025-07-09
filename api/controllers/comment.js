@@ -77,37 +77,27 @@ export const addComment = async (req, res) => {
         postId,
       });
 
-      // Determine response based on severity
-      if (contentAnalysis.severity === "critical") {
-        return res.status(403).json({
-          message:
-            "Comment blocked due to critical policy violation. Account flagged for review.",
-          severity: contentAnalysis.severity,
-          confidence: contentAnalysis.confidence,
-          violationCount: contentAnalysis.violations?.length || 1,
-        });
-      } else if (contentAnalysis.severity === "high") {
-        return res.status(403).json({
-          message:
-            "Comment blocked due to policy violation. Please review our community guidelines.",
-          severity: contentAnalysis.severity,
-          confidence: contentAnalysis.confidence,
-          suggestedEdit: cleanText(desc),
-        });
-      } else if (contentAnalysis.severity === "medium") {
-        return res.status(403).json({
-          message: "Comment blocked. Please revise your message.",
-          severity: contentAnalysis.severity,
-          suggestedEdit: cleanText(desc),
-        });
-      } else {
-        return res.status(403).json({
-          message:
-            "Comment may violate community guidelines. Please review and try again.",
-          severity: contentAnalysis.severity,
-          suggestedEdit: cleanText(desc),
-        });
-      }
+      // Determine response based on severity - show user-friendly popup
+      return res.status(400).json({
+        success: false,
+        showPopup: true,
+        popupType: "content_moderation",
+        title: "Comment Guidelines Notice",
+        message:
+          "Thank you for wanting to engage with our community! We noticed your comment might not align with our positive community standards.",
+        details:
+          "We encourage respectful and uplifting conversations that make everyone feel welcome. Please consider revising your comment to spread positivity.",
+        severity: contentAnalysis.severity,
+        actionRequired: false,
+        canRetry: true,
+        suggestions: [
+          "Keep comments respectful and kind",
+          "Focus on constructive feedback",
+          "Spread positivity and encouragement",
+          "Build meaningful discussions",
+        ],
+        suggestedEdit: cleanText(desc),
+      });
     }
 
     // Content is clean, proceed with comment creation
@@ -122,7 +112,7 @@ export const addComment = async (req, res) => {
     // Create notification for post owner
     const post = await Post.findById(postId);
     if (post && post.userId.toString() !== userInfo.id) {
-      createCommentNotification(
+      await createCommentNotification(
         userInfo.id,
         post.userId,
         postId,
@@ -138,7 +128,7 @@ export const addComment = async (req, res) => {
         const username = mention.substring(1); // Remove @ symbol
         const mentionedUser = await User.findOne({ username });
         if (mentionedUser && mentionedUser._id.toString() !== userInfo.id) {
-          createMentionNotification(
+          await createMentionNotification(
             userInfo.id,
             mentionedUser._id,
             postId,

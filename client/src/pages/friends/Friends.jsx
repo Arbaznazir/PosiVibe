@@ -4,12 +4,16 @@ import { makeRequest } from '../../axios';
 import { AuthContext } from '../../context/authContext';
 import { useContext } from 'react';
 import Avatar from '../../components/avatar/Avatar';
+import VerificationBadge from '../../components/verificationBadge/VerificationBadge';
 import toast from 'react-hot-toast';
 import { 
   Search as SearchIcon, 
   PersonAdd as PersonAddIcon,
   PersonRemove as PersonRemoveIcon,
-  People as PeopleIcon 
+  People as PeopleIcon,
+  Message as MessageIcon,
+  Visibility as VisibilityIcon,
+  LocationOn as LocationIcon
 } from '@mui/icons-material';
 import './friends.scss';
 
@@ -126,9 +130,22 @@ const Friends = () => {
                       showOnline={true}
                     />
                     <div className="user-info">
-                      <h3>{user.name}</h3>
-                      <p>@{user.username}</p>
-                      {user.city && <span className="location">{user.city}</span>}
+                      <div className="user-name">
+                        <h3>{user.name}</h3>
+                        {user.verificationBadge && (
+                          <VerificationBadge 
+                            badge={user.verificationBadge} 
+                            reason={user.verificationReason}
+                            size="medium"
+                          />
+                        )}
+                      </div>
+                      <p className="username">@{user.username}</p>
+                      {user.city && (
+                        <span className="location">
+                          <LocationIcon /> {user.city}
+                        </span>
+                      )}
                     </div>
                     <div className="user-actions">
                       <button 
@@ -143,7 +160,7 @@ const Friends = () => {
                         className="message-btn"
                         onClick={() => window.location.href = `/app/messages`}
                       >
-                        Message
+                        <MessageIcon /> Message
                       </button>
                     </div>
                   </div>
@@ -166,9 +183,22 @@ const Friends = () => {
                       showOnline={true}
                     />
                     <div className="user-info">
-                      <h3>{user.name}</h3>
-                      <p>@{user.username}</p>
-                      {user.city && <span className="location">{user.city}</span>}
+                      <div className="user-name">
+                        <h3>{user.name}</h3>
+                        {user.verificationBadge && (
+                          <VerificationBadge 
+                            badge={user.verificationBadge} 
+                            reason={user.verificationReason}
+                            size="medium"
+                          />
+                        )}
+                      </div>
+                      <p className="username">@{user.username}</p>
+                      {user.city && (
+                        <span className="location">
+                          <LocationIcon /> {user.city}
+                        </span>
+                      )}
                     </div>
                     <div className="user-actions">
                       <button 
@@ -183,7 +213,7 @@ const Friends = () => {
                         className="profile-btn"
                         onClick={() => window.location.href = `/app/profile/${user._id || user.id}`}
                       >
-                        View Profile
+                        <VisibilityIcon /> View Profile
                       </button>
                     </div>
                   </div>

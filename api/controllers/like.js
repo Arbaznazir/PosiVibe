@@ -75,7 +75,7 @@ export const addLike = async (req, res) => {
         // Create notification for post owner
         const post = await Post.findById(postId);
         if (post && post.userId.toString() !== userInfo.id) {
-          createLikeNotification(userInfo.id, post.userId, postId);
+          await createLikeNotification(userInfo.id, post.userId, postId);
         }
 
         return res.status(200).json("Post has been liked.");

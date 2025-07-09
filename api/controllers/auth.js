@@ -121,12 +121,7 @@ export const login = async (req, res) => {
 
     // Check if user is banned
     if (user.isBanned) {
-      return res.status(403).json({
-        error: "Account suspended",
-        reason:
-          user.lastBanReason ||
-          "Account suspended for violating community guidelines",
-      });
+      return res.status(403).json("Account is banned. Please contact support.");
     }
 
     const token = jwt.sign(
@@ -134,26 +129,27 @@ export const login = async (req, res) => {
       process.env.JWT_SECRET || "secretkey"
     );
 
-    const { password, ...userData } = user._doc;
+    const { password, ...others } = user._doc;
 
-    // Add token and ensure id field exists for frontend
-    const responseData = {
-      ...userData,
-      id: userData._id, // Ensure id field exists
-      token, // Include token in response
-      isAdmin: userData.isAdmin || false, // Explicitly include isAdmin flag
+    // Add token to response and ensure id field exists
+    const userResponse = {
+      ...others,
+      id: others._id, // Ensure id field exists for frontend compatibility
+      token: token, // Add token to response for frontend
     };
 
     res
       .cookie("accessToken", token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+        maxAge: 24 * 60 * 60 * 1000, // 24 hours
       })
       .status(200)
-      .json(responseData);
+      .json(userResponse);
   } catch (err) {
     console.error("Login error:", err);
-    res.status(500).json("Internal server error");
+    res.status(500).json(err);
   }
 };
 

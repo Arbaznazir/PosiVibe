@@ -7,65 +7,9 @@ import {
 } from "../utils/aiContentFilter.js";
 import User from "../models/User.js";
 import Relationship from "../models/Relationship.js";
+import { getUserTimeLimit } from "../models/UserTimeLimit.js";
 
-// Mock time limit data storage
-let userTimeLimits = {};
-
-// Function to track and get user's time limit info
-const getUserTimeLimit = (userId) => {
-  const now = new Date();
-  const today = now.toDateString();
-
-  // Initialize user time limit if not exists
-  if (!userTimeLimits[userId]) {
-    userTimeLimits[userId] = {
-      timeSpentToday: 0,
-      lastReset: today,
-      lastActive: now,
-      sessionStart: now,
-    };
-  }
-
-  const userLimit = userTimeLimits[userId];
-
-  // Reset if it's a new day
-  if (userLimit.lastReset !== today) {
-    userLimit.timeSpentToday = 0;
-    userLimit.lastReset = today;
-    userLimit.sessionStart = now;
-  }
-
-  // Calculate time spent in current session
-  const sessionTime = now - new Date(userLimit.sessionStart);
-
-  // Add session time to total time spent today
-  userLimit.timeSpentToday += sessionTime;
-  userLimit.sessionStart = now; // Reset session start
-
-  // Update last active
-  userLimit.lastActive = now;
-
-  const DAILY_LIMIT = 2.5 * 60 * 60 * 1000; // 2.5 hours in milliseconds
-  const remaining = Math.max(0, DAILY_LIMIT - userLimit.timeSpentToday);
-
-  // Calculate next reset time (midnight)
-  const resetTime = new Date();
-  resetTime.setDate(resetTime.getDate() + 1);
-  resetTime.setHours(0, 0, 0, 0);
-
-  console.log(`⏰ User ${userId} time tracking:`, {
-    timeSpentToday: Math.floor(userLimit.timeSpentToday / 1000 / 60), // in minutes
-    remainingMinutes: Math.floor(remaining / 1000 / 60),
-    sessionTimeSeconds: Math.floor(sessionTime / 1000),
-  });
-
-  return {
-    remaining,
-    dailyLimit: DAILY_LIMIT,
-    resetTime: resetTime.toISOString(),
-    timeSpentToday: userLimit.timeSpentToday,
-  };
-};
+// Using database-based time limit tracking from UserTimeLimit model
 
 export const getUser = async (req, res) => {
   try {
@@ -89,30 +33,21 @@ export const getUser = async (req, res) => {
 };
 
 export const getAllUsers = async (req, res) => {
-  const token = req.cookies.accessToken;
-  if (!token) return res.status(401).json("Not authenticated!");
+  try {
+    const currentUserId = req.userInfo.id;
 
-  jwt.verify(
-    token,
-    process.env.JWT_SECRET || "secretkey",
-    async (err, userInfo) => {
-      if (err) return res.status(403).json("Token is not valid!");
+    // Get all users except the current user
+    const users = await User.find({
+      _id: { $ne: currentUserId },
+    })
+      .select("-password")
+      .sort({ createdAt: -1 });
 
-      try {
-        // Get all users except the current user
-        const users = await User.find({
-          _id: { $ne: userInfo.id },
-        })
-          .select("-password")
-          .sort({ createdAt: -1 });
-
-        return res.json(users);
-      } catch (err) {
-        console.error("Get all users error:", err);
-        return res.status(500).json("Failed to get users");
-      }
-    }
-  );
+    return res.json(users);
+  } catch (err) {
+    console.error("Get all users error:", err);
+    return res.status(500).json("Failed to get users");
+  }
 };
 
 export const verifyCurrentUser = async (req, res) => {
@@ -373,7 +308,7 @@ export const getTimeLimit = async (req, res) => {
       if (err) return res.status(403).json("Token is not valid!");
 
       try {
-        const timeLimit = getUserTimeLimit(userInfo.id);
+        const timeLimit = await getUserTimeLimit(userInfo.id);
 
         // Format the remaining time in user-friendly format
         const hours = Math.floor(timeLimit.remaining / (60 * 60 * 1000));
@@ -425,28 +360,15 @@ export const simulateTimeUsage = async (req, res) => {
         const { minutes } = req.body;
         const timeToAdd = (minutes || 30) * 60 * 1000; // Convert minutes to milliseconds
 
-        // Initialize user if not exists
-        if (!userTimeLimits[userInfo.id]) {
-          const now = new Date();
-          userTimeLimits[userInfo.id] = {
-            timeSpentToday: 0,
-            lastReset: now.toDateString(),
-            lastActive: now,
-            sessionStart: now,
-          };
-        }
-
-        // Add time to user's usage
-        userTimeLimits[userInfo.id].timeSpentToday += timeToAdd;
-
+        // This is a test endpoint - in production, time is tracked automatically
         console.log(
           `⚡ Simulated ${minutes || 30} minutes of usage for user ${
             userInfo.id
           }`
         );
 
-        // Get updated time info
-        const timeLimit = getUserTimeLimit(userInfo.id);
+        // Get current time info
+        const timeLimit = await getUserTimeLimit(userInfo.id);
 
         return res.json({
           message: `Added ${minutes || 30} minutes to usage`,
@@ -516,6 +438,9 @@ export const getSuggestions = async (req, res) => {
               name: user.name,
               username: user.username,
               profilePic: user.profilePic,
+              isVerified: user.isVerified,
+              verificationBadge: user.verificationBadge,
+              verificationReason: user.verificationReason,
               mutualFriends: mutualFriendsCount,
               isFollowing: false, // Since we filtered out already followed users
             };

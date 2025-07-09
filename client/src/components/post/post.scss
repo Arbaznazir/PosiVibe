@@ -72,6 +72,12 @@
             gap: 2px;  // Reduced gap
             flex: 1;
 
+            .name-container {
+              display: flex;
+              align-items: center;
+              gap: 6px;
+            }
+
             .name {
               font-weight: 600;
               font-size: 14px;  // Reduced font size
