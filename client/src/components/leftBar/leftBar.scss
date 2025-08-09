@@ -114,11 +114,21 @@
            }
          }
 
-        img {
+        img, .avatar-letter {
           width: 32px;
           height: 32px;
           border-radius: 50%;
           object-fit: cover;
+        }
+        
+        .avatar-letter {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background-color: var(--primary, #5271ff);
+          color: white;
+          font-weight: 600;
+          font-size: 16px;
         }
 
         svg {

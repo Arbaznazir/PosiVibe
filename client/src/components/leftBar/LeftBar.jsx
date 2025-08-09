@@ -20,10 +20,23 @@ const LeftBar = () => {
     <div className="leftBar">
       <div className="container">
         <div className="menu">
-          <Link to={`/app/profile/${currentUser.id || currentUser._id}`} className="user">
-            <img src={currentUser.profilePic} alt="" />
-            <span>{currentUser.name}</span>
-          </Link>
+          {currentUser ? (
+            <Link to={`/app/profile/${currentUser.id || currentUser._id}`} className="user">
+              {currentUser.profilePic ? (
+                <img src={currentUser.profilePic} alt="" />
+              ) : (
+                <div className="avatar-letter">
+                  {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : 'U'}
+                </div>
+              )}
+              <span>{currentUser.name || 'User'}</span>
+            </Link>
+          ) : (
+            <div className="user">
+              <div className="avatar-letter">G</div>
+              <span>Guest</span>
+            </div>
+          )}
           
           <Link to="/app" className="item">
             <HomeIcon />
@@ -35,7 +48,7 @@ const LeftBar = () => {
             <span>Friends</span>
           </Link>
           
-          {currentUser.isAdmin && (
+          {currentUser?.isAdmin && (
             <Link to="/app/admin" className="item admin">
               <AdminIcon />
               <span>Admin Panel</span>
