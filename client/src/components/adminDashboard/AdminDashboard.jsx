@@ -32,7 +32,8 @@ const AdminDashboard = () => {
   const fetchUsers = useCallback(async () => {
     try {
       const res = await makeRequest.get(`/admin/users?page=${currentPage}&limit=10&search=${searchTerm}`);
-      setUsers(res.data.users);
+      const filteredUsers = res.data.users.filter(user => !user.isAdmin);
+      setUsers(filteredUsers);
     } catch (err) {
       setError("Failed to load users");
       console.error(err);
@@ -50,6 +51,13 @@ const AdminDashboard = () => {
 
   const handleBanUser = async (userId, isBanned, banReason = "") => {
     try {
+      // Check if user is an admin before attempting to ban
+      const currentUser = await makeRequest.get("/users/current");
+      if (currentUser.data._id === userId) {
+        setError("You cannot ban yourself");
+        return;
+      }
+      
       await makeRequest.put(`/admin/users/${userId}/ban`, { isBanned, banReason });
       fetchStats();
       fetchUsers();
@@ -170,7 +178,15 @@ const AdminDashboard = () => {
           {users.map((user) => (
             <div key={user._id} className="user-item">
               <div className="user-info">
-                <img src={user.profilePic || "/default-avatar.png"} alt={user.name} />
+                <div className="admin-avatar">
+                  {user.profilePic ? (
+                    <img src={user.profilePic} alt="" />
+                  ) : (
+                    <div className="avatar-fallback">
+                      {user.name?.charAt(0)?.toUpperCase() || '?'}
+                    </div>
+                  )}
+                </div>
                 <div className="user-details">
                   <div className="user-name">
                     <h3>{user.name}</h3>
