@@ -18,10 +18,13 @@ import {
   DoneAll,
   PersonAdd,
   Refresh,
+  Close as CloseIcon,
+  Image as ImageIcon,
 } from '@mui/icons-material';
 import Avatar from '../../components/avatar/Avatar';
 import toast from 'react-hot-toast';
 import { formatDistanceToNow } from 'date-fns';
+import EmojiPicker from 'emoji-picker-react';
 
 // Suggested Users Component
 const SuggestedUsers = () => {
@@ -89,8 +92,13 @@ const MessagesPage = () => {
   const [isTyping, setIsTyping] = useState(false);
   const [typingUser, setTypingUser] = useState(null);
   const [showSidebar, setShowSidebar] = useState(true);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [filePreview, setFilePreview] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
+  const fileInputRef = useRef(null);
   const queryClient = useQueryClient();
 
   // Fetch conversations
@@ -218,11 +226,71 @@ const MessagesPage = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const handleSendMessage = (e) => {
+  const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!newMessage.trim() || !selectedUserId) return;
+    if ((!newMessage.trim() && !selectedFile)) return;
 
-    socketService.sendMessage(selectedUserId, newMessage.trim());
+    try {
+      // Clear typing indicator
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+      socketService.socket.emit('stop_typing', { receiverId: selectedUserId });
+
+      let messageData = {
+        receiverId: selectedUserId,
+        content: newMessage,
+      };
+      
+      // Handle file upload if present
+      if (selectedFile) {
+        setIsUploading(true);
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+        
+        try {
+          // Upload file to server
+          const uploadRes = await makeRequest.post('/upload', formData);
+          const fileUrl = uploadRes.data.url || uploadRes.data.secure_url || uploadRes.data;
+          
+          // Add file URL to message data
+          messageData.fileUrl = fileUrl;
+          messageData.fileName = selectedFile.name;
+          messageData.fileType = selectedFile.type;
+          
+          // Clear selected file
+          setSelectedFile(null);
+          setFilePreview(null);
+        } catch (uploadError) {
+          console.error('Error uploading file:', uploadError);
+          toast.error('Failed to upload file');
+          setIsUploading(false);
+          return;
+        }
+      }
+
+      // Send message to server
+      const res = await makeRequest.post('/messages', messageData);
+
+      // Emit socket event
+      socketService.socket.emit('send_message', {
+        ...res.data,
+        receiverId: selectedUserId,
+      });
+
+      // Update local messages
+      setMessages((prev) => [...prev, res.data]);
+      setNewMessage('');
+      setIsUploading(false);
+      scrollToBottom();
+
+      // Invalidate conversations query to update the sidebar
+      queryClient.invalidateQueries(['conversations']);
+    } catch (error) {
+      console.error('Error sending message:', error);
+      toast.error('Failed to send message');
+      setIsUploading(false);
+    }
   };
 
   const handleTyping = (e) => {
@@ -456,7 +524,23 @@ const MessagesPage = () => {
                       )}
                       <div className="message-content">
                         <div className="message-bubble">
-                          <p>{message.content}</p>
+                          {message.content && <p>{message.content}</p>}
+                          {message.fileUrl && (
+                            <div className="message-attachment">
+                              {message.fileType?.startsWith('image/') ? (
+                                <img 
+                                  src={message.fileUrl} 
+                                  alt="Shared image" 
+                                  onClick={() => window.open(message.fileUrl, '_blank')}
+                                />
+                              ) : (
+                                <div className="file-attachment" onClick={() => window.open(message.fileUrl, '_blank')}>
+                                  <ImageIcon />
+                                  <span>{message.fileName || 'Attachment'}</span>
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                         <div className="message-info">
                           <span className="time">{formatMessageTime(message.createdAt)}</span>
@@ -475,9 +559,59 @@ const MessagesPage = () => {
                 <div ref={messagesEndRef} />
               </div>
 
+              {/* File Preview */}
+              {filePreview && (
+                <div className="file-preview">
+                  <div className="file-preview-header">
+                    <h4>File to send</h4>
+                    <button 
+                      type="button" 
+                      className="close-btn"
+                      onClick={() => {
+                        setSelectedFile(null);
+                        setFilePreview(null);
+                      }}
+                    >
+                      <CloseIcon />
+                    </button>
+                  </div>
+                  <div className="file-preview-content">
+                    {selectedFile?.type.startsWith('image/') ? (
+                      <img src={filePreview} alt="Preview" />
+                    ) : (
+                      <div className="file-icon">
+                        <ImageIcon />
+                        <span>{selectedFile?.name}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+              
               {/* Message Input */}
               <form className="message-input" onSubmit={handleSendMessage}>
-                <button type="button" className="attachment-btn" title="Attach file">
+                <input 
+                  type="file"
+                  ref={fileInputRef}
+                  style={{ display: 'none' }}
+                  onChange={(e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                      setSelectedFile(file);
+                      const reader = new FileReader();
+                      reader.onload = (e) => {
+                        setFilePreview(e.target.result);
+                      };
+                      reader.readAsDataURL(file);
+                    }
+                  }}
+                />
+                <button 
+                  type="button" 
+                  className="attachment-btn" 
+                  title="Attach file"
+                  onClick={() => fileInputRef.current.click()}
+                >
                   <AttachFileIcon />
                 </button>
                 <input
@@ -486,17 +620,36 @@ const MessagesPage = () => {
                   value={newMessage}
                   onChange={handleTyping}
                 />
-                <button type="button" className="emoji-btn" title="Add emoji">
+                <button 
+                  type="button" 
+                  className="emoji-btn" 
+                  title="Add emoji"
+                  onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                >
                   <EmojiIcon />
                 </button>
                 <button 
                   type="submit" 
                   className="send-btn"
-                  disabled={!newMessage.trim()}
+                  disabled={(!newMessage.trim() && !selectedFile) || isUploading}
                   title="Send message"
                 >
                   <SendIcon />
                 </button>
+                
+                {/* Emoji Picker */}
+                {showEmojiPicker && (
+                  <div className="emoji-picker-container">
+                    <EmojiPicker 
+                      onEmojiClick={(emojiData) => {
+                        setNewMessage((prev) => prev + emojiData.emoji);
+                        setShowEmojiPicker(false);
+                      }}
+                      width={300}
+                      height={400}
+                    />
+                  </div>
+                )}
               </form>
             </>
           ) : (

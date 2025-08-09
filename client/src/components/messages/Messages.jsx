@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useContext } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import EmojiPicker from 'emoji-picker-react';
 import { makeRequest } from '../../axios';
 import { AuthContext } from '../../context/authContext';
 import socketService from '../../services/socket';
@@ -29,6 +30,7 @@ const Messages = ({ isOpen, onClose }) => {
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [typingUser, setTypingUser] = useState(null);
@@ -190,13 +192,13 @@ const Messages = ({ isOpen, onClose }) => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const handleSendMessage = (e) => {
+  const handleSendMessage = async (e) => {
     e.preventDefault();
     
     console.log('🔄 handleSendMessage called:', { 
       newMessage: `"${newMessage}"`, 
       trimmed: `"${newMessage.trim()}"`,
-      selectedUserId 
+      selectedUserId
     });
     
     if (!newMessage || !newMessage.trim() || !selectedUserId) {
@@ -212,7 +214,10 @@ const Messages = ({ isOpen, onClose }) => {
       return;
     }
 
-    console.log('🔄 Sending message:', { selectedUserId, message: newMessage.trim() });
+    console.log('🔄 Sending message:', { 
+      selectedUserId, 
+      message: newMessage.trim()
+    });
     console.log('🔗 Socket connected:', socketService.isConnected());
     
     const messageToSend = newMessage.trim();
@@ -220,6 +225,7 @@ const Messages = ({ isOpen, onClose }) => {
     // Clear message input immediately (optimistic update)
     setNewMessage('');
     
+    // Send message
     const success = socketService.sendMessage(selectedUserId, messageToSend);
     
     if (!success) {
@@ -251,6 +257,13 @@ const Messages = ({ isOpen, onClose }) => {
       socketService.sendStopTyping(selectedUserId);
     }, 1000);
   };
+  
+  const handleEmojiClick = (emojiData) => {
+    setNewMessage(prev => prev + emojiData.emoji);
+    setShowEmojiPicker(false);
+  };
+
+
 
   const formatMessageTime = (dateString) => {
     const date = new Date(dateString);
@@ -566,7 +579,8 @@ const Messages = ({ isOpen, onClose }) => {
                       }
                       
                       const isOwn = message.senderId._id === currentUser.id;
-                      const showAvatar = !isOwn && (
+                      const isSystemMessage = message.isSystemMessage;
+                      const showAvatar = !isOwn && !isSystemMessage && (
                         index === 0 || 
                         messages[index - 1]?.senderId?._id !== message.senderId._id
                       );
@@ -574,7 +588,7 @@ const Messages = ({ isOpen, onClose }) => {
                       return (
                         <div
                           key={message._id}
-                          className={`message ${isOwn ? 'own' : 'other'}`}
+                          className={`message ${isSystemMessage ? 'system' : isOwn ? 'own' : 'other'}`}
                         >
                           {showAvatar && (
                             <Avatar
@@ -587,7 +601,50 @@ const Messages = ({ isOpen, onClose }) => {
                           
                           <div className="message-content">
                             <div className="message-bubble">
-                              <p>{message.content}</p>
+                              {/* Only show text content if it's not an image-only message */}
+                              {(typeof message.content === 'string' && message.content) && <p>{message.content}</p>}
+                              
+                              {/* Handle image attachments */}
+                              {(() => {
+                                // Extract the image URL from various possible locations
+                                const imageUrl = message.fileUrl || 
+                                                message.file || 
+                                                (typeof message.content === 'object' && message.content.fileUrl) ||
+                                                (typeof message.content === 'object' && message.content.file);
+                                
+                                // If we have an image URL
+                                if (imageUrl && imageUrl.match(/\.(jpeg|jpg|gif|png)$/i)) {
+                                  return (
+                                    <div className="message-attachment">
+                                      <img 
+                                        src={imageUrl} 
+                                        alt="Shared image" 
+                                        className="message-image"
+                                        onClick={() => window.open(imageUrl, '_blank')}
+                                      />
+                                    </div>
+                                  );
+                                }
+                                // If we have a non-image file URL
+                                else if (imageUrl) {
+                                  return (
+                                    <div className="message-attachment">
+                                      <div className="message-file">
+                                        <AttachFileIcon />
+                                        <a 
+                                          href={imageUrl} 
+                                          target="_blank" 
+                                          rel="noopener noreferrer"
+                                          className="file-link"
+                                        >
+                                          Download File
+                                        </a>
+                                      </div>
+                                    </div>
+                                  );
+                                }
+                                return null;
+                              })()}
                               <div className="message-meta">
                                 <span className="message-time">
                                   {formatMessageTime(message.createdAt)}
@@ -606,14 +663,8 @@ const Messages = ({ isOpen, onClose }) => {
 
               {/* Message Input */}
               <div className="message-input-container">
+                
                 <form onSubmit={handleSendMessage} className="message-input-form">
-                  <button 
-                    type="button" 
-                    className="icon-btn attach-btn"
-                    title="Attach file"
-                  >
-                    <AttachFileIcon />
-                  </button>
                   
                   <div className="input-wrapper">
                     <input
@@ -624,15 +675,29 @@ const Messages = ({ isOpen, onClose }) => {
                       maxLength={1000}
                       className="message-input"
                       autoComplete="off"
+                      disabled={false}
                     />
                     
                     <button 
                       type="button"
                       className="icon-btn emoji-btn"
                       title="Add emoji"
+                      onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                      disabled={false}
                     >
                       <EmojiIcon />
                     </button>
+                    
+                    {showEmojiPicker && (
+                      <div className="emoji-picker-container">
+                        <EmojiPicker 
+                          onEmojiClick={handleEmojiClick} 
+                          width={300} 
+                          height={400}
+                          previewConfig={{ showPreview: false }}
+                        />
+                      </div>
+                    )}
                   </div>
                   
                   <button 

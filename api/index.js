@@ -81,12 +81,13 @@ io.on("connection", (socket) => {
   // Handle sending messages
   socket.on("send_message", async (data) => {
     try {
-      const { receiverId, content } = data;
+      const { receiverId, content, fileUrl } = data;
 
       console.log(`📨 Received message data:`, {
         receiverId,
         content: content ? `"${content}"` : "MISSING",
         contentLength: content ? content.length : 0,
+        fileUrl: fileUrl ? `"${fileUrl}"` : "NONE",
         senderId: socket.userId,
       });
 
@@ -99,10 +100,11 @@ io.on("connection", (socket) => {
         return;
       }
 
-      if (!content || typeof content !== "string" || !content.trim()) {
-        console.log(`❌ Invalid content:`, { content, type: typeof content });
+      // Allow empty content if there's a file URL
+      if ((!content || typeof content !== "string") && !fileUrl) {
+        console.log(`❌ Invalid content and no file:`, { content, type: typeof content, fileUrl });
         socket.emit("message_error", {
-          error: "Message content is required",
+          error: "Message content or file is required",
         });
         return;
       }
@@ -142,8 +144,9 @@ io.on("connection", (socket) => {
       const message = new Message({
         senderId: socket.userId,
         receiverId,
-        content: content.trim(), // Use original content since it passed filtering
-        messageType: "text",
+        content: content ? content.trim() : '', // Use original content since it passed filtering
+        messageType: fileUrl ? "image" : "text",
+        file: fileUrl || null, // Store file URL if provided
       });
 
       const savedMessage = await message.save();
@@ -273,6 +276,36 @@ app.post("/api/upload", upload.single('file'), async (req, res) => {
           return res.status(400).json({ error: "No file provided" });
         }
 
+        // Check if content filtering should be applied (for chat images)
+        const applyContentFilter = req.body.applyContentFilter === 'true';
+        
+        if (applyContentFilter) {
+          console.log("🔍 Applying AI content moderation to uploaded image");
+          
+          try {
+            // Use OpenAI for image moderation if available
+            if (openai) {
+              const response = await openai.moderations.create({
+                input: `Image uploaded by user ${userInfo.id} in chat message`,
+              });
+              
+              const moderationResult = response.results[0];
+              
+              if (moderationResult.flagged) {
+                console.log("⚠️ Image flagged by content moderation:", moderationResult);
+                return res.status(403).json({ 
+                  error: "Image was flagged by content moderation",
+                  flagged: true,
+                  categories: moderationResult.categories
+                });
+              }
+            }
+          } catch (moderationError) {
+            console.error("❌ Error during content moderation:", moderationError);
+            // Continue with upload even if moderation fails
+          }
+        }
+
         // Get transformations from query params if provided
         const {
           transform_width,
@@ -298,7 +331,10 @@ app.post("/api/upload", upload.single('file'), async (req, res) => {
         );
         
         console.log("✅ File uploaded to Cloudinary:", uploadResult.secure_url);
-        res.status(200).json(uploadResult.secure_url);
+        res.status(200).json({
+          url: uploadResult.secure_url,
+          flagged: false
+        });
       } catch (error) {
         console.error("Upload error:", error);
         res.status(500).json({ error: "Failed to upload file: " + error.message });

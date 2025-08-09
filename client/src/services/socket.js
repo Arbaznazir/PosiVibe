@@ -127,7 +127,7 @@ class SocketService {
   sendMessage(receiverId, content) {
     console.log("📤 SocketService.sendMessage called:", {
       receiverId,
-      content,
+      content
     });
     console.log("📡 Socket status:", {
       hasSocket: !!this.socket,
@@ -154,7 +154,7 @@ class SocketService {
     console.log("✅ Emitting send_message event");
     this.socket.emit("send_message", {
       receiverId,
-      content,
+      content
     });
     return true;
   }
