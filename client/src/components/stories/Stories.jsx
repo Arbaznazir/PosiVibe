@@ -229,7 +229,7 @@ const Stories = () => {
     if (moderationError) {
       setModerationError(null);
     }
-  }, [storyText]);
+  }, [storyText, moderationError]);
 
   const handleCreateStory = async () => {
     if (storyType === "text" && !storyText.trim()) {
@@ -285,7 +285,7 @@ const Stories = () => {
     }
   };
 
-  const openStoryViewer = (userStories, startIndex = 0) => {
+  const openStoryViewer = useCallback((userStories, startIndex = 0) => {
     setCurrentStoryUser(userStories);
     setCurrentStoryIndex(startIndex);
     setShowStoryViewer(true);
@@ -293,14 +293,14 @@ const Stories = () => {
     setStoryReaction(null);
     
     // Mark first story as viewed
-    if (userStories.stories[startIndex]) {
+    if (userStories?.stories?.[startIndex]) {
       const storyId = userStories.stories[startIndex]._id || userStories.stories[startIndex].id;
       viewStoryMutation.mutate(storyId);
     }
-  };
+  }, [setCurrentStoryUser, setCurrentStoryIndex, setShowStoryViewer, setIsPaused, setStoryReaction, viewStoryMutation]);
 
-  const nextStory = () => {
-    if (currentStoryIndex < currentStoryUser.stories.length - 1) {
+  const nextStory = useCallback(() => {
+    if (currentStoryIndex < currentStoryUser?.stories.length - 1) {
       const nextIndex = currentStoryIndex + 1;
       setCurrentStoryIndex(nextIndex);
       setStoryReaction(null);
@@ -308,10 +308,10 @@ const Stories = () => {
       viewStoryMutation.mutate(storyId);
     } else {
       // Try to find next user with stories
-      const currentUserIndex = data.findIndex(user => 
-        user.userId === currentStoryUser.userId);
+      const currentUserIndex = data?.findIndex(user => 
+        user.userId === currentStoryUser?.userId);
       
-      if (currentUserIndex < data.length - 1) {
+      if (currentUserIndex < data?.length - 1) {
         // Move to next user's stories
         openStoryViewer(data[currentUserIndex + 1], 0);
       } else {
@@ -319,7 +319,7 @@ const Stories = () => {
         setShowStoryViewer(false);
       }
     }
-  };
+  }, [currentStoryIndex, currentStoryUser, data, openStoryViewer, setCurrentStoryIndex, setShowStoryViewer, setStoryReaction, viewStoryMutation]);
 
   const prevStory = () => {
     if (currentStoryIndex > 0) {
@@ -408,7 +408,7 @@ const Stories = () => {
     return () => {
       if (storyTimer) clearTimeout(storyTimer);
     };
-  }, [showStoryViewer, currentStoryIndex, isPaused, currentStoryUser]);
+  }, [showStoryViewer, currentStoryIndex, isPaused, currentStoryUser, nextStory]);
 
   // Handle story reactions
   const handleReaction = (reaction) => {

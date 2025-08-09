@@ -113,15 +113,39 @@ export const createNotification = async (notificationData) => {
 export const getNotificationsForUser = async (userId, limit = 20) => {
   try {
     const notifications = await Notification.find({ toUserId: userId })
-      .populate("fromUserId", "name username profilePic")
-      .populate("postId", "desc img")
       .sort({ createdAt: -1 })
-      .limit(limit);
+      .limit(limit)
+      .populate("fromUserId", "name profilePic")
+      .lean();
 
-    return notifications;
+    // Transform _id to id for frontend consistency
+    return notifications.map((notification) => ({
+      ...notification,
+      id: notification._id.toString(),
+    }));
   } catch (error) {
     console.error("Error getting notifications:", error);
-    return [];
+    throw error;
+  }
+};
+
+/**
+ * Delete a specific notification
+ * @param {string} notificationId - The notification ID
+ * @param {string} userId - The user ID (for security)
+ * @returns {boolean} Success status
+ */
+export const deleteNotification = async (notificationId, userId) => {
+  try {
+    const result = await Notification.deleteOne({
+      _id: notificationId,
+      toUserId: userId, // Security check: user can only delete their own notifications
+    });
+
+    return result.deletedCount > 0;
+  } catch (error) {
+    console.error("Error deleting notification:", error);
+    throw error;
   }
 };
 

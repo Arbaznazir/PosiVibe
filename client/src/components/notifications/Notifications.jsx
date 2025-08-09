@@ -1,7 +1,8 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { makeRequest } from '../../axios';
 import './notifications.scss';
+import { Link } from 'react-router-dom';
 import {
   Favorite,
   ChatBubble,
@@ -11,17 +12,24 @@ import {
   Close,
   MarkEmailRead,
   Circle,
+  CheckCircle,
+  Cancel,
+  // Person, // Removed unused import
 } from '@mui/icons-material';
 import { formatDistanceToNow } from 'date-fns';
+import toast from 'react-hot-toast';
 
 const Notifications = ({ isOpen, onClose, onToggle }) => {
   const dropdownRef = useRef(null);
   const queryClient = useQueryClient();
+  const [showAllNotifications, setShowAllNotifications] = useState(false);
+  const [notificationLimit, setNotificationLimit] = useState(5); // Default limit
+  const [localUnreadCount, setLocalUnreadCount] = useState(0); // Local unread count
 
   // Fetch notifications
   const { data: notifications = [], isLoading, error } = useQuery({
-    queryKey: ['notifications'],
-    queryFn: () => makeRequest.get('/notifications').then(res => res.data),
+    queryKey: ['notifications', notificationLimit],
+    queryFn: () => makeRequest.get(`/notifications?limit=${notificationLimit}`).then(res => res.data),
     refetchInterval: 30000, // Refetch every 30 seconds
   });
 
@@ -32,11 +40,17 @@ const Notifications = ({ isOpen, onClose, onToggle }) => {
     refetchInterval: 10000, // Refetch every 10 seconds
   });
 
+  // Track read notifications locally to update UI immediately
+  const [readNotifications, setReadNotifications] = useState([]);
+
   // Mark as read mutation
   const markAsReadMutation = useMutation({
     mutationFn: (notificationId) => 
       makeRequest.put(`/notifications/${notificationId}/read`),
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
+      // Update local state immediately
+      setReadNotifications(prev => [...prev, variables]);
+      // Then invalidate queries to refresh data
       queryClient.invalidateQueries(['notifications']);
       queryClient.invalidateQueries(['notifications-unread']);
     },
@@ -49,6 +63,109 @@ const Notifications = ({ isOpen, onClose, onToggle }) => {
       queryClient.invalidateQueries(['notifications']);
       queryClient.invalidateQueries(['notifications-unread']);
     },
+  });
+  
+  // Delete notification mutation
+  const deleteNotificationMutation = useMutation({
+    mutationFn: (notificationId) => 
+      makeRequest.delete(`/notifications/${notificationId}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['notifications']);
+      queryClient.invalidateQueries(['notifications-unread']);
+      toast.success('Notification removed');
+    },
+    onError: () => {
+      toast.error('Failed to remove notification');
+    }
+  });
+
+  // Fetch relationships to check follow status
+  const { data: relationships = [] } = useQuery({
+    queryKey: ['relationships'],
+    queryFn: () => makeRequest.get('/relationships').then(res => res.data),
+  });
+
+  // Check if current user is following a specific user
+  const isFollowing = (userId) => {
+    console.log('Checking if following userId:', userId);
+    console.log('Current relationships:', relationships);
+    const result = relationships.some(relationship => {
+      console.log('Comparing:', relationship.followedUserId, 'with', userId);
+      return relationship.followedUserId === userId;
+    });
+    console.log('isFollowing result:', result);
+    return result;
+  };
+
+  // Track accepted notifications locally to update UI immediately
+  const [acceptedNotifications, setAcceptedNotifications] = useState([]);
+  
+  // Track followed back notifications locally to update UI immediately
+  const [followedBackNotifications, setFollowedBackNotifications] = useState([]);
+  
+  // Follow user mutation
+  const followMutation = useMutation({
+    mutationFn: (userId) => {
+      console.log('Following user:', userId);
+      return makeRequest.post("/relationships", { userId });
+    },
+    onSuccess: (data) => {
+      console.log('Follow success:', data);
+      queryClient.invalidateQueries(['relationships']);
+      queryClient.invalidateQueries(['notifications']);
+      queryClient.invalidateQueries(['notifications-unread']);
+      toast.success('Following user!');
+    },
+    onError: (error) => {
+      console.error('Follow error:', error);
+      toast.error('Failed to follow user');
+    }
+  });
+  
+  // Handle follow action
+  const handleFollow = (userId) => {
+    followMutation.mutate(userId);
+  };
+  
+  // Accept follow request mutation
+  const acceptFollowMutation = useMutation({
+    mutationFn: (userId) => {
+      console.log('Accepting follow request for userId:', userId);
+      return makeRequest.post(`/relationships/accept/${userId}`);
+    },
+    onSuccess: (data, variables) => {
+      console.log('Accept follow success:', data);
+      // Update local state immediately
+      setAcceptedNotifications(prev => [...prev, variables]);
+      // Then invalidate queries to refresh data
+      queryClient.invalidateQueries(['notifications']);
+      queryClient.invalidateQueries(['notifications-unread']);
+      queryClient.invalidateQueries(['relationships']);
+      toast.success('Follow request accepted!');
+    },
+    onError: (error) => {
+      console.error('Accept follow error:', error);
+      toast.error('Failed to accept follow request');
+    }
+  });
+
+  // Ignore follow request mutation
+  const ignoreFollowMutation = useMutation({
+    mutationFn: (userId) => {
+      console.log('Ignoring follow request for userId:', userId);
+      return makeRequest.post(`/relationships/ignore/${userId}`);
+    },
+    onSuccess: (data) => {
+      console.log('Ignore follow success:', data);
+      queryClient.invalidateQueries(['notifications']);
+      queryClient.invalidateQueries(['notifications-unread']);
+      queryClient.invalidateQueries(['relationships']);
+      toast.success('Follow request ignored!');
+    },
+    onError: (error) => {
+      console.error('Ignore follow error:', error);
+      toast.error('Failed to ignore follow request');
+    }
   });
 
   // Close dropdown when clicking outside
@@ -68,10 +185,19 @@ const Notifications = ({ isOpen, onClose, onToggle }) => {
     };
   }, [isOpen, onClose]);
 
-  // Check for new notifications
+  // Update local unread count when unreadData changes
   useEffect(() => {
-    // This effect can be used for additional logic when unread count changes
+    if (unreadData && unreadData.count !== undefined) {
+      setLocalUnreadCount(unreadData.count);
+    }
   }, [unreadData]);
+  
+  // Decrement local unread count when a notification is read or accepted
+  useEffect(() => {
+    if (readNotifications.length > 0 || acceptedNotifications.length > 0) {
+      setLocalUnreadCount(prev => Math.max(0, prev - 1));
+    }
+  }, [readNotifications, acceptedNotifications]);
 
   const getNotificationIcon = (type) => {
     switch (type) {
@@ -105,6 +231,66 @@ const Notifications = ({ isOpen, onClose, onToggle }) => {
   const handleMarkAllAsRead = () => {
     markAllAsReadMutation.mutate();
   };
+  
+  // These functions are now handled inline in the button onClick handlers
+  // Keeping this commented code for reference in case we need to refactor later
+  /*
+  const handleAcceptFollow = (notification) => {
+    console.log('Accept follow - notification:', notification);
+    console.log('fromUserId:', notification.fromUserId);
+    
+    // Try to get the user ID from the notification
+    // First check if it's directly in fromUserId as a string
+    let userId = notification.fromUserId;
+    
+    // If fromUserId is an object, try to get the _id property
+    if (typeof notification.fromUserId === 'object' && notification.fromUserId !== null) {
+      userId = notification.fromUserId._id;
+    }
+    
+    // If we still don't have a valid ID, try to get it from the notification directly
+    if (!userId && notification.fromUser && notification.fromUser._id) {
+      userId = notification.fromUser._id;
+    }
+    
+    console.log('Final userId for accept:', userId);
+    
+    if (userId) {
+      console.log('Accepting follow from user ID:', userId);
+      acceptFollowMutation.mutate(userId);
+    } else {
+      console.error('Missing userId in notification:', notification);
+    }
+  };
+  
+  const handleIgnoreFollow = (notification) => {
+    console.log('Ignore follow - notification:', notification);
+    console.log('fromUserId:', notification.fromUserId);
+    
+    // Try to get the user ID from the notification
+    // First check if it's directly in fromUserId as a string
+    let userId = notification.fromUserId;
+    
+    // If fromUserId is an object, try to get the _id property
+    if (typeof notification.fromUserId === 'object' && notification.fromUserId !== null) {
+      userId = notification.fromUserId._id;
+    }
+    
+    // If we still don't have a valid ID, try to get it from the notification directly
+    if (!userId && notification.fromUser && notification.fromUser._id) {
+      userId = notification.fromUser._id;
+    }
+    
+    console.log('Final userId for ignore:', userId);
+    
+    if (userId) {
+      console.log('Ignoring follow from user ID:', userId);
+      ignoreFollowMutation.mutate(userId);
+    } else {
+      console.error('Missing userId in notification:', notification);
+    }
+  };
+  */
 
   const formatTimeAgo = (dateString) => {
     try {
@@ -120,10 +306,7 @@ const Notifications = ({ isOpen, onClose, onToggle }) => {
     <div className="notifications-dropdown" ref={dropdownRef}>
       <div className="notifications-header">
         <div className="header-left">
-          <h3>Notifications</h3>
-          {unreadData?.count > 0 && (
-            <span className="unread-badge">{unreadData.count}</span>
-          )}
+          <h3>Notifications {localUnreadCount > 0 && <span className="unread-badge">{localUnreadCount}</span>}</h3>
         </div>
         <div className="header-actions">
           {notifications.some(n => !n.read) && (
@@ -176,40 +359,150 @@ const Notifications = ({ isOpen, onClose, onToggle }) => {
               <div
                 key={notification.id}
                 className={`notification-item ${!notification.read ? 'unread' : ''}`}
-                onClick={() => handleNotificationClick(notification)}
+                onClick={(e) => {
+                  // Don't trigger notification click when clicking on action buttons
+                  if (e.target.closest('.notification-actions') || 
+                      e.target.closest('.notification-avatar') || 
+                      e.target.closest('.user-name')) {
+                    return;
+                  }
+                  handleNotificationClick(notification);
+                }}
               >
-                <div className="notification-avatar">
-                  {notification.fromUser?.profilePic ? (
+                <Link 
+                  to={`/profile/${notification.fromUserId?._id}`}
+                  className="notification-avatar"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {notification.fromUserId?.profilePic ? (
                     <img 
-                      src={`/upload/${notification.fromUser.profilePic}`} 
-                      alt={notification.fromUser.name}
+                      src={`/upload/${notification.fromUserId.profilePic}`} 
+                      alt={notification.fromUserId.name}
                     />
                   ) : (
-                    <div className="avatar-fallback">
-                      {notification.fromUser?.name?.charAt(0)?.toUpperCase() || '?'}
+                    <div className="default-avatar">
+                      {notification.fromUserId?.name?.charAt(0)?.toUpperCase() || '?'}
                     </div>
                   )}
-                </div>
+                </Link>
 
                 <div className="notification-content">
                   <div className="notification-text">
-                    <span className="user-name">
-                      {notification.fromUser?.name || 'Someone'}
-                    </span>
+                    <Link 
+                      to={`/profile/${notification.fromUserId?._id}`}
+                      className="user-name"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {notification.fromUserId?.name || 'Someone'}
+                    </Link>
                     <span className="action"> {notification.message}</span>
                   </div>
                   <div className="notification-time">
                     {formatTimeAgo(notification.createdAt)}
                   </div>
+                  {notification.type === 'follow' && (
+                    <div className="notification-actions">
+                      {(() => {
+                        // Extract user ID properly
+                        const userId = notification.fromUserId?._id || notification.fromUserId;
+                        // Check if already following
+                        const alreadyFollowing = isFollowing(userId);
+                        console.log('Notification for user:', userId, 'Already following:', alreadyFollowing);
+                        
+                        if (alreadyFollowing || notification.followedBack || followedBackNotifications.includes(notification.id)) {
+                          return (
+                            <div className="friendship-status">
+                              <span className="friends-icon">✓</span> You are now friends
+                            </div>
+                          );
+                        } else if (acceptedNotifications.includes(notification.id)) {
+                          return (
+                            <button 
+                              className="action-btn follow-back"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (userId) {
+                                  handleFollow(userId);
+                                  // Mark notification as read when following back
+                                  if (!notification.read && notification.id) {
+                                    markAsReadMutation.mutate(notification.id);
+                                  }
+                                  // Update local state to show friendship status
+                                  setFollowedBackNotifications(prev => [...prev, notification.id]);
+                                  // Decrement notification count
+                                  setLocalUnreadCount(prev => Math.max(0, prev - 1));
+                                }
+                              }}
+                            >
+                              <PersonAdd className="icon" /> Follow Back
+                            </button>
+                          );
+                        } else {
+                          return (
+                            <>
+                              <button 
+                                className="action-btn accept"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const userId = notification.fromUserId?._id || notification.fromUserId;
+                                  
+                                  console.log('Accept click - notification:', notification);
+                                  console.log('Accept click - userId extracted:', userId);
+                                  
+                                  if (userId) {
+                                    acceptFollowMutation.mutate(userId);
+                                  } else {
+                                    console.error('No valid user ID found for accept action');
+                                    toast.error('Error: Could not find user ID');
+                                  }
+                                }}
+                                title="Accept follow request"
+                                disabled={acceptFollowMutation.isLoading}
+                              >
+                                <CheckCircle /> Accept
+                              </button>
+                              <button 
+                                className="action-btn ignore"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  // Get the user ID from the notification
+                                  const userId = notification.fromUserId?._id || notification.fromUserId;
+                                  
+                                  console.log('Ignore click - notification:', notification);
+                                  console.log('Ignore click - userId extracted:', userId);
+                                  
+                                  if (userId) {
+                                    ignoreFollowMutation.mutate(userId);
+                                  } else {
+                                    console.error('No valid user ID found for ignore action');
+                                    toast.error('Error: Could not find user ID');
+                                  }
+                                }}
+                                title="Ignore follow request"
+                                disabled={ignoreFollowMutation.isLoading}
+                              >
+                                <Cancel /> Ignore
+                              </button>
+                            </>
+                          );
+                        }
+                      })()}
+                    </div>
+                  )}
                 </div>
 
                 <div className="notification-meta">
-                  {getNotificationIcon(notification.type)}
-                  {!notification.read && (
-                    <div className="unread-indicator">
-                      <Circle className="unread-dot" />
-                    </div>
-                  )}
+                  {notification.type !== 'follow' && getNotificationIcon(notification.type)}
+                  <button 
+                    className="remove-notification-btn" 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteNotificationMutation.mutate(notification.id);
+                    }}
+                    title="Remove notification"
+                  >
+                    <Close fontSize="small" />
+                  </button>
                 </div>
               </div>
             ))}
@@ -219,8 +512,14 @@ const Notifications = ({ isOpen, onClose, onToggle }) => {
 
       {notifications.length > 0 && (
         <div className="notifications-footer">
-          <button className="view-all-btn">
-            View all notifications
+          <button 
+            className="view-all-btn"
+            onClick={() => {
+              setNotificationLimit(showAllNotifications ? 5 : 15);
+              setShowAllNotifications(!showAllNotifications);
+            }}
+          >
+            {showAllNotifications ? "Show less" : "View all notifications"}
           </button>
         </div>
       )}
@@ -228,4 +527,4 @@ const Notifications = ({ isOpen, onClose, onToggle }) => {
   );
 };
 
-export default Notifications; 
+export default Notifications;

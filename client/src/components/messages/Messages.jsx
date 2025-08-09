@@ -618,7 +618,7 @@ const Messages = ({ isOpen, onClose }) => {
                                     <div className="message-attachment">
                                       <img 
                                         src={imageUrl} 
-                                        alt="Shared image" 
+                                        alt="Shared content" 
                                         className="message-image"
                                         onClick={() => window.open(imageUrl, '_blank')}
                                       />

@@ -84,7 +84,7 @@ const Login = () => {
 
     try {
       // Make API call to reset password
-      const res = await axios.post("http://localhost:8800/api/auth/reset-password", {
+      await axios.post("http://localhost:8800/api/auth/reset-password", {
         username: forgotPasswordInputs.username,
         newPassword: forgotPasswordInputs.newPassword
       });

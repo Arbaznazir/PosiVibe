@@ -4,6 +4,7 @@ import {
   markNotificationAsRead,
   markAllNotificationsAsRead,
   getUnreadNotificationCount,
+  deleteNotification,
 } from "../models/Notification.js";
 
 /**
@@ -111,6 +112,36 @@ export const markAllAsRead = async (req, res) => {
       } catch (err) {
         console.error("Mark all as read error:", err);
         return res.status(500).json("Failed to mark all notifications as read");
+      }
+    }
+  );
+};
+
+/**
+ * Delete a specific notification for the authenticated user
+ */
+export const deleteNotificationById = async (req, res) => {
+  const token = req.cookies.accessToken;
+  if (!token) return res.status(401).json("Not authenticated!");
+
+  jwt.verify(
+    token,
+    process.env.JWT_SECRET || "secretkey",
+    async (err, userInfo) => {
+      if (err) return res.status(403).json("Token is not valid!");
+
+      try {
+        const notificationId = req.params.id;
+        const success = await deleteNotification(notificationId, userInfo.id);
+
+        if (success) {
+          return res.json({ message: "Notification deleted successfully" });
+        } else {
+          return res.status(404).json("Notification not found");
+        }
+      } catch (err) {
+        console.error("Delete notification error:", err);
+        return res.status(500).json("Failed to delete notification");
       }
     }
   );

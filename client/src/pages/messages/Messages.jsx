@@ -530,7 +530,7 @@ const MessagesPage = () => {
                               {message.fileType?.startsWith('image/') ? (
                                 <img 
                                   src={message.fileUrl} 
-                                  alt="Shared image" 
+                                  alt="" 
                                   onClick={() => window.open(message.fileUrl, '_blank')}
                                 />
                               ) : (

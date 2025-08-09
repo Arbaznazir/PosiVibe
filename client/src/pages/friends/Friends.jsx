@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { makeRequest } from '../../axios';
 import { AuthContext } from '../../context/authContext';
 import { useContext } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import Avatar from '../../components/avatar/Avatar';
 import VerificationBadge from '../../components/verificationBadge/VerificationBadge';
 import toast from 'react-hot-toast';
@@ -13,7 +13,7 @@ import {
   PersonRemove as PersonRemoveIcon,
   People as PeopleIcon,
   Message as MessageIcon,
-  Visibility as VisibilityIcon,
+
   LocationOn as LocationIcon
 } from '@mui/icons-material';
 import './friends.scss';

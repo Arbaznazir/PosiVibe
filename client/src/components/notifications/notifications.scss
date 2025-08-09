@@ -279,9 +279,16 @@
               .user-name {
                 font-weight: 600;
                 color: themed("textColor");
+                text-decoration: none;
+                transition: color 0.2s ease;
+                
+                &:hover {
+                  color: #667eea;
+                  text-decoration: underline;
+                }
               }
 
-              .action-text {
+              .action {
                 color: themed("textColorSoft");
               }
             }
@@ -289,37 +296,147 @@
             .notification-time {
               font-size: 0.8rem;
               color: themed("textColorSoft");
-              margin: 0;
+              margin: 0 0 8px 0;
+            }
+            
+            .notification-actions {
+              display: flex;
+              align-items: center;
+              gap: 8px;
+              margin-top: 8px;
+              
+              .friendship-status {
+                display: flex;
+                align-items: center;
+                gap: 4px;
+                padding: 6px 12px;
+                border-radius: 6px;
+                font-size: 0.85rem;
+                font-weight: 500;
+                color: themed("textColor");
+                background-color: themed("bgSoft");
+                
+                .friends-icon {
+                  color: #4CAF50;
+                  font-weight: bold;
+                }
+              }
+              
+              .action-btn {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 4px;
+                padding: 6px 12px;
+                border: none;
+                border-radius: 6px;
+                font-size: 0.85rem;
+                font-weight: 500;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                
+                svg {
+                  font-size: 16px;
+                }
+                
+                &.accept {
+                  background: #667eea;
+                  color: white;
+                  
+                  &:hover {
+                    background: #5a6edf;
+                  }
+                }
+                
+                &.follow-back {
+                  background: #667eea;
+                  color: white;
+                  font-weight: 600;
+                  
+                  &:hover {
+                    background: #5a6edf;
+                  }
+                }
+                
+                &.ignore {
+                  background: themed("bgSoft");
+                  color: themed("textColor");
+                  
+                  &:hover {
+                    background: themed("border");
+                  }
+                }
+                
+                &:disabled {
+                  opacity: 0.6;
+                  cursor: not-allowed;
+                }
+              }
             }
           }
 
-          .notification-actions {
+          .notification-meta {
             display: flex;
+            flex-direction: column;
             align-items: center;
             gap: 4px;
-            opacity: 0;
-            transition: opacity 0.2s ease;
-
-            .action-btn {
+            margin-left: 4px;
+            position: relative;
+            
+            .remove-notification-btn {
               display: flex;
               align-items: center;
               justify-content: center;
-              width: 28px;
-              height: 28px;
+              width: 24px;
+              height: 24px;
               border: none;
               background: transparent;
-              border-radius: 6px;
+              border-radius: 50%;
               color: themed("textColorSoft");
               cursor: pointer;
               transition: all 0.2s ease;
-
+              margin-top: 4px;
+              opacity: 0.6;
+              
               &:hover {
                 background: themed("border");
                 color: themed("textColor");
+                opacity: 1;
               }
-
+              
               svg {
-                font-size: 14px;
+                font-size: 16px;
+              }
+            }
+            
+            .notification-icon {
+              font-size: 18px;
+              
+              &.like {
+                color: #ff4757;
+              }
+              
+              &.comment {
+                color: #2ed573;
+              }
+              
+              &.follow {
+                color: #3742fa;
+              }
+              
+              &.mention {
+                color: #ffa502;
+              }
+              
+              &.post {
+                color: #1e90ff;
+              }
+            }
+            
+            .unread-indicator {
+              .unread-dot {
+                font-size: 10px;
+                color: #667eea;
               }
             }
           }

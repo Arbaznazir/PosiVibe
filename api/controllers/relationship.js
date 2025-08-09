@@ -210,3 +210,117 @@ export const deleteRelationship = async (req, res) => {
     }
   );
 };
+
+// Accept a follow request from another user
+export const acceptFollowRequest = async (req, res) => {
+  const token = req.cookies.accessToken;
+  if (!token) return res.status(401).json("Not logged in!");
+
+  jwt.verify(
+    token,
+    process.env.JWT_SECRET || "secretkey",
+    async (err, userInfo) => {
+      if (err) return res.status(403).json("Token is not valid!");
+
+      try {
+        const followerUserId = req.params.userId; // The user who sent the follow request
+        const followedUserId = userInfo.id; // Current user who is accepting the request
+
+        console.log("Accept follow request - follower:", followerUserId);
+        console.log("Accept follow request - followed:", followedUserId);
+
+        // Validate ObjectId formats
+        if (!mongoose.Types.ObjectId.isValid(followedUserId)) {
+          console.warn("Invalid followedUserId format:", followedUserId);
+          return res.status(400).json("Invalid user session");
+        }
+
+        if (!mongoose.Types.ObjectId.isValid(followerUserId)) {
+          console.warn("Invalid followerUserId format:", followerUserId);
+          return res.status(400).json("Invalid follower user ID format");
+        }
+
+        // Check if the relationship already exists
+        const existingRelationship = await Relationship.findOne({
+          followerUserId: followerUserId,
+          followedUserId: followedUserId,
+        });
+
+        if (existingRelationship) {
+          // If the relationship already exists, mark it as accepted
+          existingRelationship.status = "accepted";
+          await existingRelationship.save();
+          console.log("Follow request accepted:", existingRelationship);
+          return res.status(200).json("Follow request accepted");
+        } else {
+          // If the relationship doesn't exist, create a new one
+          const newRelationship = new Relationship({
+            followerUserId: followerUserId,
+            followedUserId: followedUserId,
+            status: "accepted",
+          });
+
+          await newRelationship.save();
+          console.log("New follow relationship created:", newRelationship);
+          return res.status(200).json("Follow request accepted");
+        }
+      } catch (err) {
+        console.error("Accept follow request error:", err);
+        return res.status(500).json(err);
+      }
+    }
+  );
+};
+
+// Ignore a follow request from another user
+export const ignoreFollowRequest = async (req, res) => {
+  const token = req.cookies.accessToken;
+  if (!token) return res.status(401).json("Not logged in!");
+
+  jwt.verify(
+    token,
+    process.env.JWT_SECRET || "secretkey",
+    async (err, userInfo) => {
+      if (err) return res.status(403).json("Token is not valid!");
+
+      try {
+        const followerUserId = req.params.userId; // The user who sent the follow request
+        const followedUserId = userInfo.id; // Current user who is ignoring the request
+
+        console.log("Ignore follow request - follower:", followerUserId);
+        console.log("Ignore follow request - followed:", followedUserId);
+
+        // Validate ObjectId formats
+        if (!mongoose.Types.ObjectId.isValid(followedUserId)) {
+          console.warn("Invalid followedUserId format:", followedUserId);
+          return res.status(400).json("Invalid user session");
+        }
+
+        if (!mongoose.Types.ObjectId.isValid(followerUserId)) {
+          console.warn("Invalid followerUserId format:", followerUserId);
+          return res.status(400).json("Invalid follower user ID format");
+        }
+
+        // Find and delete the relationship (ignore the follow request)
+        const deletedRelationship = await Relationship.findOneAndDelete({
+          followerUserId: followerUserId,
+          followedUserId: followedUserId,
+        });
+
+        if (deletedRelationship) {
+          console.log("Follow request ignored:", deletedRelationship);
+        } else {
+          console.log("No follow request found to ignore");
+        }
+
+        // Mark the notification as read
+        // This would be handled by the notification system
+
+        return res.status(200).json("Follow request ignored");
+      } catch (err) {
+        console.error("Ignore follow request error:", err);
+        return res.status(500).json(err);
+      }
+    }
+  );
+};
