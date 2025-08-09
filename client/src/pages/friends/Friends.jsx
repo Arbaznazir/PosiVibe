@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { makeRequest } from '../../axios';
 import { AuthContext } from '../../context/authContext';
 import { useContext } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import Avatar from '../../components/avatar/Avatar';
 import VerificationBadge from '../../components/verificationBadge/VerificationBadge';
 import toast from 'react-hot-toast';
@@ -21,6 +22,7 @@ const Friends = () => {
   const { currentUser } = useContext(AuthContext);
   const [searchTerm, setSearchTerm] = useState('');
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   // Fetch all users
   const { data: allUsers = [], isLoading: usersLoading } = useQuery({
@@ -85,8 +87,10 @@ const Friends = () => {
     return (
       <div className="friends-page">
         <div className="loading">
-          <PeopleIcon />
-          <h2>Loading people...</h2>
+          <div className="loading-icon">
+            <PeopleIcon />
+          </div>
+          <h2 className="loading-text">Loading people...</h2>
         </div>
       </div>
     );
@@ -122,12 +126,16 @@ const Friends = () => {
               <h2>People You Follow ({followingUsers.length})</h2>
               <div className="users-grid">
                 {followingUsers.map((user) => (
-                  <div key={user._id || user.id} className="user-card">
+                  <div 
+                    key={user._id || user.id} 
+                    className="user-card"
+                    onClick={() => navigate(`/app/profile/${user._id || user.id}`)}
+                    style={{ cursor: 'pointer' }}
+                  >
                     <Avatar 
-                      src={user.profilePic} 
-                      name={user.name} 
-                      size="large"
-                      showOnline={true}
+                      user={user} 
+                      size="medium"
+                      showOnline={false}
                     />
                     <div className="user-info">
                       <div className="user-name">
@@ -150,17 +158,22 @@ const Friends = () => {
                     <div className="user-actions">
                       <button 
                         className="unfollow-btn"
-                        onClick={() => handleFollowToggle(user._id || user.id, true)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleFollowToggle(user._id || user.id, true);
+                        }}
                         disabled={followMutation.isLoading}
                       >
                         <PersonRemoveIcon />
-                        Unfollow
                       </button>
                       <button 
                         className="message-btn"
-                        onClick={() => window.location.href = `/app/messages`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate('/app/messages');
+                        }}
                       >
-                        <MessageIcon /> Message
+                        <MessageIcon />
                       </button>
                     </div>
                   </div>
@@ -175,12 +188,16 @@ const Friends = () => {
             {suggestedUsers.length > 0 ? (
               <div className="users-grid">
                 {suggestedUsers.map((user) => (
-                  <div key={user._id || user.id} className="user-card">
+                  <div 
+                    key={user._id || user.id} 
+                    className="user-card"
+                    onClick={() => navigate(`/app/profile/${user._id || user.id}`)}
+                    style={{ cursor: 'pointer' }}
+                  >
                     <Avatar 
-                      src={user.profilePic} 
-                      name={user.name} 
-                      size="large"
-                      showOnline={true}
+                      user={user} 
+                      size="medium"
+                      showOnline={false}
                     />
                     <div className="user-info">
                       <div className="user-name">
@@ -203,17 +220,13 @@ const Friends = () => {
                     <div className="user-actions">
                       <button 
                         className="follow-btn"
-                        onClick={() => handleFollowToggle(user._id || user.id, false)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleFollowToggle(user._id || user.id, false);
+                        }}
                         disabled={followMutation.isLoading}
                       >
                         <PersonAddIcon />
-                        Follow
-                      </button>
-                      <button 
-                        className="profile-btn"
-                        onClick={() => window.location.href = `/app/profile/${user._id || user.id}`}
-                      >
-                        <VisibilityIcon /> View Profile
                       </button>
                     </div>
                   </div>

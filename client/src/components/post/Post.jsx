@@ -169,7 +169,7 @@ const Post = ({ post }) => {
               }}
               size="small" 
               className="avatar"
-              showOnline={true}
+              showOnline={false}
             />
             <div className="details">
               <div className="name-container">

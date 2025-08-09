@@ -140,8 +140,7 @@ const RightBar = () => {
                 <div key={user._id} className="suggestion-item">
                   <div className="user-info">
                     <Avatar 
-                      src={user.profilePic} 
-                      name={user.name} 
+                      user={user} 
                       size="small" 
                       className="avatar"
                       showOnline={false}

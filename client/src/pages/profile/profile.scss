@@ -14,23 +14,24 @@
       text-align: center;
       color: themed("textColor");
 
-      .loading-spinner {
+      .loading-container {
         display: flex;
         flex-direction: column;
         align-items: center;
         gap: 15px;
-        font-size: 1.2rem;
-        opacity: 0.8;
         
-        &::before {
-          content: "";
+        .loading-spinner {
           width: 40px;
           height: 40px;
           border-radius: 50%;
           border: 3px solid rgba(0, 0, 0, 0.1);
           border-top-color: themed("accent");
           animation: spin 1s linear infinite;
-          margin-bottom: 10px;
+        }
+        
+        .loading-text {
+          font-size: 1.2rem;
+          opacity: 0.8;
         }
       }
       

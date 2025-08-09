@@ -99,7 +99,10 @@ const Profile = () => {
   if (isLoading) {
     return (
       <div className="profile loading">
-        <div className="loading-spinner">Loading profile...</div>
+        <div className="loading-container">
+          <div className="loading-spinner"></div>
+          <div className="loading-text">Loading profile...</div>
+        </div>
       </div>
     );
   }

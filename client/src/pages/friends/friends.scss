@@ -11,16 +11,26 @@
     height: 400px;
     color: var(--textColor);
     
-    svg {
-      font-size: 48px;
+    .loading-icon {
+      animation: pulse 2s infinite ease-in-out;
       margin-bottom: 16px;
-      opacity: 0.5;
+      
+      svg {
+        font-size: 48px;
+        opacity: 0.5;
+      }
     }
     
-    h2 {
+    .loading-text {
       margin: 0;
       font-weight: 400;
       opacity: 0.7;
+    }
+    
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+      100% { transform: scale(1); }
     }
   }
   
@@ -110,84 +120,105 @@
         }
         
         .users-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-          gap: 20px;
+          display: flex;
+          flex-direction: column;
+          gap: 15px;
+          max-width: 500px;
+          margin: 0 auto;
+          padding: 0 10px;
           
           .user-card {
-            background: var(--bg);
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 20px;
-            text-align: center;
-            transition: all 0.3s ease;
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid var(--border);
+            border-radius: 0;
+            padding: 10px 0;
+            display: flex;
+            align-items: center;
+            transition: all 0.2s ease;
             
             &:hover {
-              transform: translateY(-2px);
-              box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-              border-color: var(--primary);
+              background: rgba(255, 255, 255, 0.03);
             }
             
             .user-info {
-              margin: 16px 0 20px;
+              margin: 0 0 0 12px;
+              flex: 1;
+              text-align: left;
+              display: flex;
+              flex-direction: column;
+              justify-content: center;
+              min-height: 66px;
               
               .user-name {
                 display: flex;
                 align-items: center;
-                justify-content: center;
-                gap: 8px;
-                margin-bottom: 8px;
+                gap: 4px;
+                margin-bottom: 0;
+                line-height: 18px;
                 
                 h3 {
                   margin: 0;
                   color: var(--textColor);
-                  font-size: 18px;
+                  font-size: 14px;
                   font-weight: 600;
+                  line-height: 18px;
                 }
               }
               
               .username {
-                margin: 0 0 8px;
+                margin: 0;
                 color: var(--textColorSoft);
-                font-size: 14px;
-                font-weight: 500;
+                font-size: 13px;
+                font-weight: 400;
+                line-height: 18px;
               }
               
               .location {
                 display: inline-flex;
                 align-items: center;
-                gap: 4px;
-                background: var(--border);
+                gap: 3px;
                 color: var(--textColorSoft);
-                padding: 4px 8px;
-                border-radius: 12px;
                 font-size: 12px;
                 
                 svg {
-                  font-size: 14px;
+                  font-size: 12px;
                 }
               }
             }
             
             .user-actions {
               display: flex;
-              gap: 8px;
+              gap: 10px;
               justify-content: center;
+              margin-left: auto;
+              margin-right: 10px;
+              opacity: 0.7;
+              transition: opacity 0.2s ease;
+              align-items: center;
+              min-width: 60px;
+              
+              .user-card:hover & {
+                opacity: 1;
+              }
               
               button {
                 display: flex;
                 align-items: center;
-                gap: 6px;
+                justify-content: center;
+                gap: 4px;
                 padding: 8px 16px;
                 border: none;
-                border-radius: 20px;
-                font-size: 14px;
+                border-radius: 4px;
+                font-size: 13px;
                 font-weight: 500;
                 cursor: pointer;
-                transition: all 0.3s ease;
+                transition: all 0.2s ease;
+                min-width: 40px;
+                height: 36px;
                 
                 svg {
-                  font-size: 16px;
+                  font-size: 18px;
                 }
                 
                 &:disabled {
@@ -196,12 +227,14 @@
                 }
                 
                 &.follow-btn {
-                  background: var(--primary);
+                  background: #4e54c8;
                   color: white;
+                  box-shadow: none;
                   
                   &:hover:not(:disabled) {
-                    background: var(--primary-dark);
+                    background: #3a3f9d;
                     transform: translateY(-1px);
+                    box-shadow: 0 2px 8px rgba(255, 255, 255, 0.25);
                   }
                 }
                 
@@ -215,7 +248,21 @@
                   }
                 }
                 
-                &.message-btn, &.profile-btn {
+                &.message-btn {
+                  background: transparent;
+                  color: #1da1f2;
+                  border: 1px solid #1da1f2;
+                  box-shadow: none;
+                  
+                  &:hover:not(:disabled) {
+                    background: #1da1f2;
+                    color: white;
+                    transform: translateY(-1px);
+                    box-shadow: 0 2px 8px rgba(29, 161, 242, 0.4);
+                  }
+                }
+                
+                &.profile-btn {
                   background: transparent;
                   color: var(--primary);
                   border: 1px solid var(--primary);

@@ -3,6 +3,7 @@ import "./share.scss";
 import Image from "../../assets/img.png";
 import { useContext } from "react";
 import { AuthContext } from "../../context/authContext";
+import Avatar from "../avatar/Avatar";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { makeRequest } from "../../axios";
 import ImageCropper from "../imageCropper/ImageCropper";
@@ -121,7 +122,7 @@ const Share = () => {
       <div className="container">
         <div className="top">
           <div className="left">
-            <img src={currentUser.profilePic} alt="" />
+            <Avatar user={currentUser} size="medium" />
             <input
               type="text"
               placeholder={`What's on your mind ${currentUser.name}?`}
