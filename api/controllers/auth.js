@@ -171,3 +171,44 @@ export const clearSession = (req, res) => {
     .status(200)
     .json("Session cleared. Please login again.");
 };
+
+export const resetPassword = async (req, res) => {
+  try {
+    const { username, newPassword } = req.body;
+    
+    if (!username || !newPassword) {
+      return res.status(400).json("Username and new password are required");
+    }
+    
+    // Password validation
+    const passwordRegex = /^(?=.*[A-Z])(?=.*[0-9]).{8,}$/;
+    if (!passwordRegex.test(newPassword)) {
+      return res.status(400).json("Password must be at least 8 characters with 1 uppercase letter and 1 number");
+    }
+    
+    // Find user by username or email
+    const user = await User.findOne({
+      $or: [
+        { username: username },
+        { email: username }, // Allow reset with email
+      ],
+    });
+    
+    if (!user) {
+      return res.status(404).json("User not found");
+    }
+    
+    // Hash the new password
+    const salt = bcrypt.genSaltSync(10);
+    const hashedPassword = bcrypt.hashSync(newPassword, salt);
+    
+    // Update user's password
+    user.password = hashedPassword;
+    await user.save();
+    
+    return res.status(200).json("Password reset successful");
+  } catch (err) {
+    console.error("Password reset error:", err);
+    return res.status(500).json("Password reset failed");
+  }
+};
