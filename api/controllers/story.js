@@ -5,6 +5,7 @@ import {
   checkContent,
   checkFileType,
   analyzeImageContent,
+  filterPostContent,
 } from "../utils/aiContentFilter.js";
 import {
   uploadToCloudinary,
@@ -148,49 +149,91 @@ export const addStory = async (req, res) => {
               .json({ error: "Text content must be less than 500 characters" });
           }
 
-          // Content filter for text
-          const textCheck = await checkContent(text, "story_text", userInfo.id);
-          if (!textCheck.isClean) {
-            logContentViolation("story", userInfo.id, textCheck, { text });
+          // Content filter for text - using the same robust filter as posts
+          const filterResult = await filterPostContent({ desc: text }, userInfo.id);
+          if (!filterResult.isClean) {
+            logContentViolation("story", userInfo.id, filterResult, { text });
             return res.status(400).json({
               error: "Content not allowed",
-              reason: textCheck.reason,
+              reason: filterResult.violations && filterResult.violations.length > 0 
+                ? filterResult.violations[0].reason 
+                : "Inappropriate content detected",
               message:
                 "Your story text contains inappropriate content. Please modify your message.",
+              severity: filterResult.severity || "medium"
             });
           }
+          
+          // For text stories
+          const storyData = {
+            type: "text",
+            text: text.trim(),
+            backgroundColor: backgroundColor || "#6366f1",
+            userId: userInfo.id,
+            views: [],
+            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours from now
+          };
+
+          // Create story in MongoDB
+          const newStory = await Story.create(storyData);
+          console.log("✅ Story created (text):", newStory);
+
+          return res.status(200).json({
+            message: "Story has been created",
+            story: {
+              id: newStory._id,
+              type: newStory.type,
+              text: newStory.text,
+              backgroundColor: newStory.backgroundColor,
+              createdAt: newStory.createdAt,
+              expiresAt: newStory.expiresAt,
+            },
+          });
+          
         } else {
           // For image stories
-          if (!req.files || !req.files.media) {
+          if (!req.body.media) {
             return res
               .status(400)
               .json({ error: `Media file is required for ${type} stories` });
           }
 
-          const mediaFile = req.files.media;
-
-          // Check file type
-          const fileCheck = checkFileType(mediaFile.name);
-          if (!fileCheck.isValid) {
-            return res.status(400).json({
-              error: "Invalid file type",
-              message: fileCheck.message,
-            });
-          }
-
           try {
-            // Upload to Cloudinary
-            const uploadResult = await uploadToCloudinary(
-              mediaFile.data,
-              mediaFile.name,
-              "posivibe/stories"
-            );
-
+            // The media filename is already provided from the frontend
+            const mediaFilename = req.body.media;
+            
+            // Check if the media URL is from Cloudinary
+            if (mediaFilename && mediaFilename.includes('cloudinary')) {
+              // Perform AI image moderation for the uploaded image
+              // Use the same robust moderation as posts
+              try {
+                console.log("🔍 Checking image content for story:", mediaFilename);
+                const imageAnalysisResult = await analyzeImageContent(mediaFilename);
+                
+                if (!imageAnalysisResult.isClean) {
+                  logContentViolation("story_image", userInfo.id, imageAnalysisResult, { media: mediaFilename });
+                  return res.status(400).json({
+                    error: "Content not allowed",
+                    reason: imageAnalysisResult.violations && imageAnalysisResult.violations.length > 0 
+                      ? imageAnalysisResult.violations[0].reason 
+                      : "Inappropriate image content detected",
+                    message: "Your story image contains inappropriate content that violates our community guidelines.",
+                    severity: imageAnalysisResult.severity || "medium"
+                  });
+                }
+                console.log("✅ Image passed content moderation");
+              } catch (moderationError) {
+                console.error("Image moderation error:", moderationError);
+                // Continue with story creation even if moderation fails
+                // This is a fallback to prevent blocking legitimate content if the AI service is down
+              }
+            }
+            
             // Create new story object
             const storyData = {
               type,
               userId: userInfo.id,
-              media: uploadResult.secure_url,
+              media: mediaFilename, // Use the media URL from the frontend
               views: [],
               expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours from now
             };
@@ -217,20 +260,6 @@ export const addStory = async (req, res) => {
             });
           }
         }
-
-        // For text stories
-        const storyData = {
-          type: "text",
-          text: text.trim(),
-          backgroundColor: backgroundColor || "#6366f1",
-          userId: userInfo.id,
-          views: [],
-          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours from now
-        };
-
-        // Create story in MongoDB
-        const newStory = await Story.create(storyData);
-        console.log("✅ Story created (text):", newStory);
 
         return res.status(200).json({
           message: "Story has been created",
@@ -344,23 +373,45 @@ export const deleteStory = async (req, res) => {
           return res.status(400).json("Invalid story ID");
         }
 
-        // Find and delete the story (only if it belongs to the user)
-        const deletedStory = await Story.findOneAndDelete({
+        // First find the story to get media URL if it exists
+        const story = await Story.findOne({
           _id: req.params.id,
           userId: userInfo.id,
         });
 
-        if (!deletedStory) {
+        if (!story) {
           return res
             .status(404)
             .json("Story not found or you don't have permission to delete it");
         }
 
-        console.log("✅ Story deleted successfully:", deletedStory._id);
+        // If story has media, delete from Cloudinary
+        if (story.type === "image" && story.media && story.media.includes('cloudinary')) {
+          try {
+            // Extract public_id from Cloudinary URL
+            const urlParts = story.media.split('/');
+            const filenameWithExt = urlParts[urlParts.length - 1];
+            const filename = filenameWithExt.split('.')[0];
+            const folderPath = urlParts[urlParts.length - 2];
+            const publicId = `${folderPath}/${filename}`;
+            
+            console.log("🗑️ Attempting to delete media from Cloudinary:", publicId);
+            await deleteFromCloudinary(publicId);
+            console.log("✅ Media deleted from Cloudinary");
+          } catch (cloudinaryError) {
+            console.error("Error deleting media from Cloudinary:", cloudinaryError);
+            // Continue with story deletion even if Cloudinary deletion fails
+          }
+        }
+
+        // Delete the story from database
+        await Story.deleteOne({ _id: req.params.id });
+
+        console.log("✅ Story deleted successfully:", story._id);
         return res.status(200).json("Story has been deleted.");
       } catch (err) {
         console.error("Delete story error:", err);
-        return res.status(500).json(err);
+        return res.status(500).json({ error: "Failed to delete story", message: err.message });
       }
     }
   );

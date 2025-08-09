@@ -241,8 +241,23 @@ app.use(
 
 app.use(cookieParser());
 
+// Configure multer for file uploads
+const storage = multer.memoryStorage();
+const upload = multer({ 
+  storage: storage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  fileFilter: (req, file, cb) => {
+    // Accept only images
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed'));
+    }
+  }
+});
+
 // Configure file upload route with authentication
-app.post("/api/upload", async (req, res) => {
+app.post("/api/upload", upload.single('file'), async (req, res) => {
   const token = req.cookies.accessToken;
   if (!token) return res.status(401).json("Not authenticated!");
 
@@ -253,17 +268,18 @@ app.post("/api/upload", async (req, res) => {
       if (err) return res.status(403).json("Token is not valid!");
 
       try {
+        // Check if file exists in the request
+        if (!req.file) {
+          return res.status(400).json({ error: "No file provided" });
+        }
+
+        // Get transformations from query params if provided
         const {
-          file,
           transform_width,
           transform_height,
           transform_crop,
           transform_gravity,
-        } = req.body;
-
-        if (!file) {
-          return res.status(400).json({ error: "No file provided" });
-        }
+        } = req.query;
 
         // Apply transformations if provided
         const transformations = {
@@ -273,16 +289,19 @@ app.post("/api/upload", async (req, res) => {
           gravity: transform_gravity,
         };
 
+        // Use the file buffer from multer
         const uploadResult = await uploadToCloudinary(
-          file,
-          "upload.jpg",
+          req.file.buffer,
+          req.file.originalname || "upload.jpg",
           "posivibe/uploads",
           transformations
         );
+        
+        console.log("✅ File uploaded to Cloudinary:", uploadResult.secure_url);
         res.status(200).json(uploadResult.secure_url);
       } catch (error) {
         console.error("Upload error:", error);
-        res.status(500).json({ error: "Failed to upload file" });
+        res.status(500).json({ error: "Failed to upload file: " + error.message });
       }
     }
   );
