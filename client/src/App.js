@@ -4,6 +4,7 @@ import Landing from "./pages/landing/Landing";
 import About from "./pages/about/About";
 import Terms from "./pages/terms/Terms";
 import Privacy from "./pages/privacy/Privacy";
+import Guidelines from "./pages/guidelines/Guidelines";
 import TimeLimitPage from "./pages/timeLimit/TimeLimit";
 import MessagesPage from "./pages/messages/Messages";
 import Friends from "./pages/friends/Friends";
@@ -137,6 +138,10 @@ function App() {
     {
       path: "/privacy",
       element: <Privacy />,
+    },
+    {
+      path: "/guidelines",
+      element: <Guidelines />,
     },
     {
       path: "/profile/:id",
