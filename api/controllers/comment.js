@@ -301,6 +301,28 @@ export const analyzeCommentContent = async (req, res) => {
 };
 
 // New endpoint to get comment statistics and safety metrics
+// New endpoint to get comment count for a specific post
+export const getCommentCount = async (req, res) => {
+  try {
+    const postId = req.query.postId;
+
+    if (!postId) {
+      return res.status(400).json("Post ID is required");
+    }
+
+    // Count comments for the specific post
+    const count = await Comment.countDocuments({ postId });
+    
+    return res.status(200).json(count);
+  } catch (err) {
+    console.error("Error in getCommentCount:", err);
+    return res.status(500).json({
+      message: "Internal server error during comment count retrieval",
+      error: process.env.NODE_ENV === "development" ? err.message : undefined,
+    });
+  }
+};
+
 export const getCommentStats = async (req, res) => {
   const token = req.cookies.accessToken;
   if (!token) {

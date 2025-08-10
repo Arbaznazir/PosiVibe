@@ -5,6 +5,7 @@ import {
   deleteComment,
   analyzeCommentContent,
   getCommentStats,
+  getCommentCount,
 } from "../controllers/comment.js";
 import { zeroToleranceCommentFilter } from "../utils/zeroToleranceMiddleware.js";
 
@@ -20,5 +21,6 @@ router.delete("/:id", deleteComment);
 // New endpoints for content analysis and statistics
 router.post("/analyze", analyzeCommentContent);
 router.get("/stats", getCommentStats);
+router.get("/count", getCommentCount);
 
 export default router;

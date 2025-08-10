@@ -50,6 +50,18 @@ const Post = ({ post }) => {
   }, {
     enabled: !!post?.id, // Only run query if post and post.id exist
   });
+  
+  // Fetch comment count for this post
+  const { data: commentCount } = useQuery(["commentCount", post?.id || "unknown"], () => {
+    if (!post?.id) {
+      return Promise.resolve(0);
+    }
+    return makeRequest.get("/comments/count?postId=" + post.id).then((res) => {
+      return res.data;
+    });
+  }, {
+    enabled: !!post?.id, // Only run query if post and post.id exist
+  });
 
   const queryClient = useQueryClient();
 
@@ -271,7 +283,8 @@ const Post = ({ post }) => {
               title="View comments"
             >
               <TextsmsOutlinedIcon className="icon" />
-              <span className="text">Comment</span>
+              <span className="count">{commentCount || 0}</span>
+              <span className="text">Comment{commentCount !== 1 ? 's' : ''}</span>
             </button>
 
             <button 
