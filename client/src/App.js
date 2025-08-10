@@ -1,5 +1,6 @@
 import Login from "./pages/login/Login";
 import Register from "./pages/register/Register";
+import Landing from "./pages/landing/Landing";
 import TimeLimitPage from "./pages/timeLimit/TimeLimit";
 import MessagesPage from "./pages/messages/Messages";
 import Friends from "./pages/friends/Friends";
@@ -120,11 +121,7 @@ function App() {
   const router = createBrowserRouter([
     {
       path: "/",
-      element: (
-        <LoggedInRoute>
-          <Login />
-        </LoggedInRoute>
-      ),
+      element: <Landing />,
     },
     {
       path: "/profile/:id",

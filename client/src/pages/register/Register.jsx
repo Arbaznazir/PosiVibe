@@ -283,20 +283,7 @@ const Register = () => {
               </div>
             </div>
 
-            <div className="stats">
-              <div className="stat">
-                <div className="stat-number">10K+</div>
-                <div className="stat-label">Active Users</div>
-              </div>
-              <div className="stat">
-                <div className="stat-number">50K+</div>
-                <div className="stat-label">Posts Shared</div>
-              </div>
-              <div className="stat">
-                <div className="stat-number">100K+</div>
-                <div className="stat-label">Connections Made</div>
-              </div>
-            </div>
+            {/* Stats section removed for authenticity */}
           </div>
 
           <div className="auth-switch">
