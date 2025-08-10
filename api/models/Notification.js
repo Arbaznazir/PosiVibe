@@ -115,8 +115,21 @@ export const getNotificationsForUser = async (userId, limit = 20) => {
     const notifications = await Notification.find({ toUserId: userId })
       .sort({ createdAt: -1 })
       .limit(limit)
-      .populate("fromUserId", "name profilePic")
+      .populate("fromUserId", "name profilePic username")
       .lean();
+
+    // Debug log populated data
+    console.log('Populated notifications data:', 
+      JSON.stringify(notifications.map(n => ({
+        fromUser: n.fromUserId ? {
+          id: n.fromUserId._id,
+          name: n.fromUserId.name,
+          profilePic: n.fromUserId.profilePic
+        } : 'No fromUserId',
+        type: n.type,
+        message: n.message
+      })), null, 2)
+    );
 
     // Transform _id to id for frontend consistency
     return notifications.map((notification) => ({

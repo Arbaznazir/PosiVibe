@@ -13,16 +13,25 @@ const CoverPhoto = ({ user, editable = false }) => {
   const [imageError, setImageError] = useState(false);
 
   const handleImageSelect = async (e) => {
+    console.log('CoverPhoto: Image selection started');
     const file = e.target.files[0];
-    if (!file) return;
+    if (!file) {
+      console.log('CoverPhoto: No file selected');
+      return;
+    }
 
     try {
+      console.log('CoverPhoto: Validating image:', file.name, file.type, file.size);
       validateImage(file);
+      console.log('CoverPhoto: Image validation passed');
       const url = URL.createObjectURL(file);
+      console.log('CoverPhoto: Created object URL:', url);
       setPreviewUrl(url);
+      console.log('CoverPhoto: Setting showCropper to true');
       setShowCropper(true);
       setError(null);
     } catch (err) {
+      console.error('CoverPhoto: Image validation error:', err);
       setError(err.message);
     }
   };
@@ -30,33 +39,28 @@ const CoverPhoto = ({ user, editable = false }) => {
   const handleCropComplete = async (croppedImage) => {
     try {
       setLoading(true);
-      const reader = new FileReader();
-      const base64Promise = new Promise((resolve, reject) => {
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = (error) => reject(error);
+      
+      // Create FormData for file upload
+      const formData = new FormData();
+      formData.append("file", croppedImage);
+      
+      // Add transformation parameters
+      Object.entries(IMAGE_TYPES.COVER).forEach(([key, value]) => {
+        formData.append(key, value);
       });
-      reader.readAsDataURL(croppedImage);
-      const base64Data = await base64Promise;
 
       // Upload to server
-      const formData = {
-        file: base64Data,
-        transform_width: IMAGE_TYPES.COVER.width,
-        transform_height: IMAGE_TYPES.COVER.height,
-        transform_crop: IMAGE_TYPES.COVER.crop,
-        transform_gravity: IMAGE_TYPES.COVER.gravity
-      };
-
       const res = await makeRequest.post("/upload", formData);
       
       // Update user profile with new cover URL
       await makeRequest.put("/users", {
-        coverPic: res.data
+        coverPic: res.data.url
       });
 
       // Reload page to show new cover picture
       window.location.reload();
     } catch (err) {
+      console.error("Cover photo upload error:", err);
       setError(err.response?.data?.message || err.message || "Error updating cover photo");
     } finally {
       setLoading(false);
@@ -99,14 +103,12 @@ const CoverPhoto = ({ user, editable = false }) => {
       )}
 
       {showCropper && previewUrl && (
-        <div className="cropper-modal">
-          <ImageCropper
-            imageUrl={previewUrl}
-            aspectRatio={COVER_RATIO}
-            onCropComplete={handleCropComplete}
-            onCancel={handleCropCancel}
-          />
-        </div>
+        <ImageCropper
+          imageUrl={previewUrl}
+          aspectRatio={COVER_RATIO}
+          onCropComplete={handleCropComplete}
+          onCancel={handleCropCancel}
+        />
       )}
 
       {error && (

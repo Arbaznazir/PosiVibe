@@ -214,30 +214,21 @@
             }
           }
 
-          .notification-avatar {
+          .notification-avatar-wrapper {
             position: relative;
             flex-shrink: 0;
-
-            img {
+            margin-right: 10px;
+            
+            .avatar {
               width: 40px;
               height: 40px;
-              border-radius: 50%;
-              object-fit: cover;
+              
+              .avatar-image {
+                width: 40px;
+                height: 40px;
+              }
             }
-
-            .default-avatar {
-              width: 40px;
-              height: 40px;
-              border-radius: 50%;
-              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              color: white;
-              font-weight: 600;
-              font-size: 16px;
-            }
-
+            
             .notification-type-icon {
               position: absolute;
               bottom: -2px;

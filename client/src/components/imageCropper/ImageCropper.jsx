@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import Cropper from 'react-cropper';
 import 'cropperjs/dist/cropper.css';
 import './imageCropper.scss';
@@ -10,8 +10,68 @@ const ImageCropper = ({ imageUrl, aspectRatio = 1, onCropComplete, onCancel }) =
   const cropperRef = useRef(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [cropperReady, setCropperReady] = useState(false);
 
   console.log('ImageCropper rendered with:', { imageUrl, aspectRatio });
+
+  // Effect to check if image URL is valid
+  useEffect(() => {
+    console.log('ImageCropper: Checking image URL:', imageUrl);
+    if (!imageUrl) {
+      console.error('ImageCropper: No image URL provided');
+      setError('No image URL provided');
+      return;
+    }
+
+    // Create an image element to test if the URL is valid
+    const img = new Image();
+    img.onload = () => {
+      console.log('ImageCropper: Image loaded successfully');
+      setError(null);
+    };
+    img.onerror = () => {
+      console.error('ImageCropper: Failed to load image from URL:', imageUrl);
+      setError('Failed to load image');
+    };
+    img.src = imageUrl;
+  }, [imageUrl]);
+
+  // Effect to fix cropper opacity issues
+  useEffect(() => {
+    if (cropperReady) {
+      const fixCropperOpacity = () => {
+        const cropper = cropperRef.current?.cropper;
+        if (!cropper) return;
+
+        // Fix modal overlay
+        const modalElements = document.querySelectorAll('.cropper-modal');
+        modalElements.forEach(modal => {
+          modal.style.opacity = '0';
+          modal.style.display = 'none';
+          modal.style.backgroundColor = 'transparent';
+        });
+
+        // Fix canvas and image opacity
+        const canvasImages = document.querySelectorAll('.cropper-canvas img, .cropper-view-box img');
+        canvasImages.forEach(img => {
+          img.style.opacity = '1';
+          img.style.filter = 'none';
+        });
+
+        // Fix container background
+        const cropperContainers = document.querySelectorAll('.cropper-container');
+        cropperContainers.forEach(container => {
+          container.style.backgroundColor = 'transparent';
+        });
+      };
+
+      // Apply fixes immediately and after a short delay to ensure they take effect
+      fixCropperOpacity();
+      const timeoutId = setTimeout(fixCropperOpacity, 100);
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [cropperReady]);
 
   const handleCrop = async (e) => {
     e.preventDefault();
@@ -48,6 +108,8 @@ const ImageCropper = ({ imageUrl, aspectRatio = 1, onCropComplete, onCancel }) =
     onCancel();
   };
 
+  console.log('ImageCropper rendering with:', { imageUrl, aspectRatio, loading, error, cropperReady });
+  
   return (
     <div className="image-cropper" onClick={(e) => e.stopPropagation()}>
       <div className="cropper-container" onClick={(e) => e.stopPropagation()}>
@@ -68,62 +130,26 @@ const ImageCropper = ({ imageUrl, aspectRatio = 1, onCropComplete, onCancel }) =
             <Cropper
               ref={cropperRef}
               src={imageUrl}
-              style={{ height: 400, width: '100%' }}
+              style={{ height: aspectRatio === 1 ? 350 : 300, width: '100%' }}
               aspectRatio={aspectRatio}
+              initialAspectRatio={aspectRatio}
               guides={true}
               viewMode={1}
               dragMode="move"
               background={false}
               responsive={true}
-              autoCropArea={1}
+              autoCropArea={aspectRatio === 1 ? 0.8 : 0.9}
               checkOrientation={false}
               cropBoxMovable={true}
               cropBoxResizable={true}
               toggleDragModeOnDblclick={false}
-              minCropBoxHeight={100}
-              minCropBoxWidth={100}
+              minCropBoxHeight={80}
+              minCropBoxWidth={80}
               modal={false}
               highlight={false}
               ready={() => {
                 console.log('Cropper is ready');
-                const cropper = cropperRef.current?.cropper;
-                if (cropper) {
-                  // Force image to be opaque
-                  const image = cropper.image;
-                  if (image) {
-                    image.style.opacity = '1';
-                    image.style.filter = 'none';
-                  }
-                  
-                  // Disable modal overlay
-                  const modal = cropper.container.querySelector('.cropper-modal');
-                  if (modal) {
-                    modal.style.display = 'none';
-                    modal.style.opacity = '0';
-                  }
-                  
-                  // Force canvas image opacity
-                  const canvas = cropper.container.querySelector('.cropper-canvas img');
-                  if (canvas) {
-                    canvas.style.opacity = '1';
-                    canvas.style.filter = 'none';
-                  }
-                  
-                  // Apply fixes after a short delay to ensure DOM is updated
-                  setTimeout(() => {
-                    const allImages = cropper.container.querySelectorAll('img');
-                    allImages.forEach(img => {
-                      img.style.opacity = '1';
-                      img.style.filter = 'none';
-                    });
-                    
-                    const allModals = cropper.container.querySelectorAll('.cropper-modal');
-                    allModals.forEach(modal => {
-                      modal.style.display = 'none';
-                      modal.style.opacity = '0';
-                    });
-                  }, 100);
-                }
+                setCropperReady(true);
               }}
             />
           </div>

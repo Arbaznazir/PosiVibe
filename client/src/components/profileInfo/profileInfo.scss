@@ -1,27 +1,28 @@
 .profile-info {
   position: relative;
-  padding: 20px;
-  background-color: white;
-  border-radius: 10px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 25px;
+  background-color: var(--bg-card);
+  border-radius: 15px;
+  box-shadow: var(--shadow-card);
   margin: 20px 0;
+  border: 1px solid var(--border-color);
 
   .info-display {
     h1 {
       font-size: 24px;
       margin: 0 0 8px 0;
-      color: #333;
+      color: var(--text-primary);
     }
 
     .username {
       font-size: 16px;
-      color: #666;
+      color: var(--text-color-secondary);
       margin: 0 0 12px 0;
     }
 
     .city {
       font-size: 14px;
-      color: #666;
+      color: var(--text-color-muted);
       margin: 0 0 8px 0;
     }
 
@@ -43,17 +44,20 @@
     align-items: center;
     gap: 8px;
     padding: 8px 16px;
-    background-color: #f3f4f6;
-    border: 1px solid #ddd;
+    background-color: var(--bg-soft);
+    border: 1px solid var(--border-color);
     border-radius: 20px;
     cursor: pointer;
     font-size: 14px;
-    color: #666;
-    transition: all 0.2s ease;
+    color: var(--text-color);
+    transition: all 0.3s ease;
     margin-top: 16px;
 
     &:hover {
-      background-color: #e5e7eb;
+      background-color: var(--primary-color);
+      color: white;
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-sm);
     }
 
     svg {

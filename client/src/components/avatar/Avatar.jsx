@@ -21,16 +21,33 @@ const Avatar = ({
   const [imageError, setImageError] = useState(false);
 
   const handleImageSelect = async (e) => {
+    console.log('Image selection started');
     const file = e.target.files[0];
-    if (!file) return;
+    if (!file) {
+      console.log('No file selected');
+      return;
+    }
 
     try {
+      console.log('Validating image:', file.name, file.type, file.size);
       validateImage(file);
+      console.log('Image validation passed');
       const url = URL.createObjectURL(file);
-      setPreviewUrl(url);
-      setShowCropper(true);
+      console.log('Created object URL:', url);
+      
+      // Reset any previous errors
       setError(null);
+      
+      // Set the preview URL first
+      setPreviewUrl(url);
+      
+      // Force a small delay before showing the cropper to ensure state is updated
+      setTimeout(() => {
+        console.log('Setting showCropper to true');
+        setShowCropper(true);
+      }, 50);
     } catch (err) {
+      console.error('Image validation error:', err);
       setError(err.message);
     }
   };
@@ -38,33 +55,28 @@ const Avatar = ({
   const handleCropComplete = async (croppedImage) => {
     try {
       setLoading(true);
-      const reader = new FileReader();
-      const base64Promise = new Promise((resolve, reject) => {
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = (error) => reject(error);
+      
+      // Create FormData for file upload
+      const formData = new FormData();
+      formData.append("file", croppedImage);
+      
+      // Add transformation parameters
+      Object.entries(IMAGE_TYPES.PROFILE).forEach(([key, value]) => {
+        formData.append(key, value);
       });
-      reader.readAsDataURL(croppedImage);
-      const base64Data = await base64Promise;
 
       // Upload to server
-      const formData = {
-        file: base64Data,
-        transform_width: IMAGE_TYPES.PROFILE.width,
-        transform_height: IMAGE_TYPES.PROFILE.height,
-        transform_crop: IMAGE_TYPES.PROFILE.crop,
-        transform_gravity: IMAGE_TYPES.PROFILE.gravity
-      };
-
       const res = await makeRequest.post("/upload", formData);
       
       // Update user profile with new image URL
       await makeRequest.put("/users", {
-        profilePic: res.data
+        profilePic: res.data.url
       });
 
       // Reload page to show new profile picture
       window.location.reload();
     } catch (err) {
+      console.error("Profile photo upload error:", err);
       setError(err.response?.data?.message || err.message || "Error updating profile picture");
     } finally {
       setLoading(false);
@@ -167,14 +179,12 @@ const Avatar = ({
       )}
 
       {showCropper && previewUrl && (
-        <div className="cropper-modal">
-          <ImageCropper
-            imageUrl={previewUrl}
-            aspectRatio={PROFILE_RATIO}
-            onCropComplete={handleCropComplete}
-            onCancel={handleCropCancel}
-          />
-        </div>
+        <ImageCropper
+          imageUrl={previewUrl}
+          aspectRatio={PROFILE_RATIO}
+          onCropComplete={handleCropComplete}
+          onCancel={handleCropCancel}
+        />
       )}
 
       {error && (

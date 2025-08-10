@@ -18,6 +18,7 @@ import {
 } from '@mui/icons-material';
 import { formatDistanceToNow } from 'date-fns';
 import toast from 'react-hot-toast';
+import Avatar from '../avatar/Avatar'; // Added Avatar import
 
 const Notifications = ({ isOpen, onClose, onToggle }) => {
   const dropdownRef = useRef(null);
@@ -371,19 +372,14 @@ const Notifications = ({ isOpen, onClose, onToggle }) => {
               >
                 <Link 
                   to={`/profile/${notification.fromUserId?._id}`}
-                  className="notification-avatar"
+                  className="notification-avatar-wrapper"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  {notification.fromUserId?.profilePic ? (
-                    <img 
-                      src={`/upload/${notification.fromUserId.profilePic}`} 
-                      alt={notification.fromUserId.name}
-                    />
-                  ) : (
-                    <div className="default-avatar">
-                      {notification.fromUserId?.name?.charAt(0)?.toUpperCase() || '?'}
-                    </div>
-                  )}
+                  <Avatar 
+                    user={notification.fromUserId}
+                    size="small"
+                    showOnline={false}
+                  />
                 </Link>
 
                 <div className="notification-content">
