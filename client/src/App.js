@@ -2,6 +2,7 @@ import Login from "./pages/login/Login";
 import Register from "./pages/register/Register";
 import Landing from "./pages/landing/Landing";
 import About from "./pages/about/About";
+import Terms from "./pages/terms/Terms";
 import TimeLimitPage from "./pages/timeLimit/TimeLimit";
 import MessagesPage from "./pages/messages/Messages";
 import Friends from "./pages/friends/Friends";
@@ -127,6 +128,10 @@ function App() {
     {
       path: "/about",
       element: <About />,
+    },
+    {
+      path: "/terms",
+      element: <Terms />,
     },
     {
       path: "/profile/:id",

@@ -82,6 +82,13 @@ const LeftBar = () => {
             <span>Gaming</span>
           </div>
         </div>
+        <hr />
+        <div className="menu">
+          <span>Legal</span>
+          <div onClick={() => window.open('/terms', '_blank')} className="item" style={{ cursor: 'pointer' }}>
+            <span>Terms of Service</span>
+          </div>
+        </div>
       </div>
     </div>
   );
