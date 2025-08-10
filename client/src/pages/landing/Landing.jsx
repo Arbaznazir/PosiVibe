@@ -296,15 +296,15 @@ const Landing = () => {
             </div>
             <div className="footer-column">
               <h4>Company</h4>
-              <a href="#">About Us</a>
-              <a href="#">Careers</a>
-              <a href="#">Contact</a>
+              <a href="#about" aria-label="About Us">About Us</a>
+              <a href="#careers" aria-label="Careers">Careers</a>
+              <a href="#contact" aria-label="Contact">Contact</a>
             </div>
             <div className="footer-column">
               <h4>Legal</h4>
-              <a href="#">Terms of Service</a>
-              <a href="#">Privacy Policy</a>
-              <a href="#">Community Guidelines</a>
+              <a href="#terms" aria-label="Terms of Service">Terms of Service</a>
+              <a href="#privacy" aria-label="Privacy Policy">Privacy Policy</a>
+              <a href="#guidelines" aria-label="Community Guidelines">Community Guidelines</a>
             </div>
           </div>
         </div>
