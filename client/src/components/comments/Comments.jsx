@@ -7,7 +7,6 @@ import moment from "moment";
 import toast from "react-hot-toast";
 import Avatar from "../avatar/Avatar";
 import SendIcon from "@mui/icons-material/Send";
-import VerificationBadge from "../verificationBadge/VerificationBadge";
 
 /**
  * Comments Component
