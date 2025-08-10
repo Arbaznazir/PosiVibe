@@ -1,15 +1,25 @@
 import "./comments.scss";
 import { useContext, useState } from "react";
 import { AuthContext } from "../../context/authContext";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { makeRequest } from "../../axios";
 import moment from "moment";
-import { 
-  Send as SendIcon,
-} from "@mui/icons-material";
-import toast from 'react-hot-toast';
+import toast from "react-hot-toast";
 import Avatar from "../avatar/Avatar";
+import SendIcon from "@mui/icons-material/Send";
 import VerificationBadge from "../verificationBadge/VerificationBadge";
+
+/**
+ * Comments Component
+ * 
+ * This component displays a comments section for a post, including:
+ * - A dark bottom sheet with a grab handle
+ * - Header with "Comments" title
+ * - List of comments with avatars, usernames, timestamps, and likes
+ * - Reply and translation links for each comment
+ * - View more replies link
+ * - Bottom emoji row and input field for adding new comments
+ */
 
 const Comments = ({ postId }) => {
   const [desc, setDesc] = useState("");
@@ -47,58 +57,83 @@ const Comments = ({ postId }) => {
   };
 
   return (
-    <div className="comments">
-      <div className="write">
-        <Avatar 
-          src={currentUser.profilePic} 
-          alt={currentUser.name}
-          size="small"
-        />
-        <div className="comment-input-container">
-            <input
-              type="text"
-              placeholder="Write a comment..."
-              value={desc}
-              onChange={(e) => setDesc(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleClick(e)}
-            />
-            <button 
-              onClick={handleClick} 
-              disabled={!desc.trim() || mutation.isLoading}
-              className="send-btn"
-            >
-              <SendIcon />
-            </button>
-        </div>
-      </div>
-
+    <div className="comments-section">
+      <div className="comments-container">
         {error ? (
-        <div className="error">Something went wrong!</div>
+          <div className="error">Something went wrong!</div>
         ) : isLoading ? (
-        <div className="loading">Loading comments...</div>
+          <div className="loading">Loading comments...</div>
         ) : (
           data?.map((comment) => (
             <div className="comment" key={comment.id}>
-              <Avatar 
-                src={comment.profilePic} 
-              alt={comment.name}
-              size="small"
-              />
-              <div className="info">
-                <div className="comment-header">
-                  <div className="name-container">
-                  <span className="name">{comment.name}</span>
-                    {comment.verificationBadge && (
-                      <VerificationBadge badge={comment.verificationBadge} size="small" />
-                    )}
-                  </div>
-                  <span className="date">{moment(comment.createdAt).fromNow()}</span>
+              <div className="avatar">
+                <Avatar 
+                  user={{
+                    profilePic: comment.profilePic,
+                    name: comment.name,
+                    verificationBadge: comment.verificationBadge
+                  }}
+                  size="small"
+                />
+              </div>
+              
+              <div className="body">
+                <div className="meta">
+                  <div className="name">{comment.name}</div>
+                  <div className="time">{moment(comment.createdAt).fromNow()}</div>
+                  {comment.likes > 0 && (
+                    <div className="likes">
+                      <div className="heart">❤</div>
+                      <div className="count">{comment.likes}</div>
+                    </div>
+                  )}
                 </div>
-                <p className="comment-text">{comment.desc}</p>
+                
+                <div className="text">{comment.desc}</div>
               </div>
             </div>
           ))
         )}
+      </div>
+      
+      {/* Comment input area */}
+      <div className="comments-composer">
+        <div className="comments-emoji-row">
+          <div className="emoji-item" onClick={() => { mutation.mutate({ desc: "💗", postId }); }}>💗</div>
+          <div className="emoji-item" onClick={() => { mutation.mutate({ desc: "🙌", postId }); }}>🙌</div>
+          <div className="emoji-item" onClick={() => { mutation.mutate({ desc: "🔥", postId }); }}>🔥</div>
+          <div className="emoji-item" onClick={() => { mutation.mutate({ desc: "👏", postId }); }}>👏</div>
+          <div className="emoji-item" onClick={() => { mutation.mutate({ desc: "😢", postId }); }}>😢</div>
+          <div className="emoji-item" onClick={() => { mutation.mutate({ desc: "😍", postId }); }}>😍</div>
+          <div className="emoji-item" onClick={() => { mutation.mutate({ desc: "😮", postId }); }}>😮</div>
+          <div className="emoji-item" onClick={() => { mutation.mutate({ desc: "😂", postId }); }}>😂</div>
+        </div>
+        
+        <div className="comments-input-wrap">
+          <div className="comments-user-avatar">
+            <Avatar 
+              user={currentUser}
+              size="small"
+            />
+          </div>
+          <input 
+            className="comments-input" 
+            placeholder="What do you think of this?"
+            aria-label="Add a comment"
+            value={desc}
+            onChange={(e) => setDesc(e.target.value)}
+            onKeyPress={(e) => e.key === 'Enter' && handleClick(e)}
+          />
+          <button 
+            className="comments-send-btn" 
+            aria-label="Send comment"
+            onClick={handleClick}
+            disabled={!desc.trim() || mutation.isLoading}
+          >
+            <SendIcon fontSize="small" />
+          </button>
+        </div>
+      </div>
     </div>
   );
 };

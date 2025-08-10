@@ -1,351 +1,223 @@
 @import "../../style.scss";
 
-.comments {
+/**
+ * Comments Component Styling
+ * 
+ * This file includes styling for the comments component with:
+ * - Inline comments layout that integrates with posts
+ * - Comment styling with avatars, metadata, and text
+ * - Emoji row and input field for adding new comments
+ */
+
+.comments-section {
   @include themify($themes) {
-    background: themed("bgCard");
-    border-radius: var(--border-radius-lg);
-    padding: 20px;
-    margin-top: 20px;
-    border: 1px solid themed("borderSoft");
-    box-shadow: var(--shadow-sm);
-
-    .write {
-      display: flex;
-      align-items: flex-start;
-      gap: 16px;
-      margin-bottom: 24px;
-      padding: 16px;
-      background: themed("bgSoft");
-      border-radius: var(--border-radius-lg);
-      border: 1px solid themed("border");
-      transition: all var(--transition-normal);
-
-      &:focus-within {
-        border-color: themed("accent");
-        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-        transform: translateY(-1px);
-      }
-
-      .avatar {
-        flex-shrink: 0;
-        position: relative;
-
-        img {
-          width: 40px;
-          height: 40px;
-          border-radius: 50%;
-          object-fit: cover;
-          border: 2px solid themed("accent");
-          transition: all var(--transition-normal);
-
-          &:hover {
-            transform: scale(1.05);
-          }
-        }
-
-        .status-dot {
-          position: absolute;
-          bottom: 2px;
-          right: 2px;
-          width: 12px;
-          height: 12px;
-          background: var(--success-gradient);
-          border: 2px solid themed("bgCard");
-          border-radius: 50%;
-        }
-      }
-
-      .input-section {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-
-        .input-wrapper {
-          position: relative;
-
-          input {
-            width: 100%;
-            border: none;
-            outline: none;
-            padding: 12px 16px;
-            background: themed("bg");
-            color: themed("textColor");
-            border-radius: var(--border-radius-md);
-            font-size: 14px;
-            transition: all var(--transition-normal);
-            border: 1px solid transparent;
-
-            &:focus {
-              border-color: themed("accent");
-              background: themed("bgCard");
-            }
-
-            &::placeholder {
-              color: themed("textColorSoft");
-            }
-          }
-
-          .char-count {
-            position: absolute;
-            bottom: -18px;
-            right: 0;
-            font-size: 11px;
-            color: themed("textColorSoft");
-          }
-        }
-
-        .actions {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-
-          .emoji-picker {
-            display: flex;
-            gap: 8px;
-
-            .emoji {
-              width: 28px;
-              height: 28px;
-              border-radius: 50%;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              cursor: pointer;
-              transition: all var(--transition-normal);
-              font-size: 14px;
-
-              &:hover {
-                background: themed("bgSoft");
-                transform: scale(1.1);
-              }
-            }
-          }
-
-          .submit-btn {
-            padding: 8px 16px;
-            background: var(--primary-gradient);
-            color: white;
-            border: none;
-            border-radius: var(--border-radius-md);
-            font-size: 13px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all var(--transition-normal);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-
-            &:hover:not(:disabled) {
-              transform: translateY(-1px);
-              box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-            }
-
-            &:disabled {
-              opacity: 0.6;
-              cursor: not-allowed;
-              transform: none;
-            }
-          }
-        }
-      }
-    }
-
-    .comments-list {
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-
-      .comment {
-        display: flex;
-        align-items: flex-start;
-        gap: 12px;
-        padding: 16px;
-        background: themed("bg");
-        border-radius: var(--border-radius-lg);
-        border: 1px solid themed("borderSoft");
-        transition: all var(--transition-normal);
-        animation: slideInUp 0.3s ease-out;
-
-        &:hover {
-          border-color: themed("accent");
-          transform: translateX(4px);
-        }
-
-        .avatar {
-          flex-shrink: 0;
-
-          img {
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 2px solid themed("borderSoft");
-            transition: all var(--transition-normal);
-          }
-        }
-
-        .content {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-
-          .comment-header {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            flex-wrap: wrap;
-
-            .name-container {
-              display: flex;
-              align-items: center;
-              gap: 6px;
-            }
-
-            .name {
-              font-weight: 600;
-              font-size: 14px;
-              color: themed("textColor");
-            }
-
-            .date {
-              font-size: 12px;
-              color: themed("textColorSoft");
-            }
-          }
-
-          .text {
-            font-size: 14px;
-            line-height: 1.5;
-            color: themed("textColor");
-            word-wrap: break-word;
-          }
-
-          .actions {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            margin-top: 4px;
-
-            .action-btn {
-              display: flex;
-              align-items: center;
-              gap: 4px;
-              padding: 4px 8px;
-              border-radius: var(--border-radius-sm);
-              font-size: 12px;
-              color: themed("textColorSoft");
-              cursor: pointer;
-              transition: all var(--transition-normal);
-              border: none;
-              background: transparent;
-
-              &:hover {
-                background: themed("bgSoft");
-                color: themed("accent");
-              }
-
-              &.liked {
-                color: #e11d48;
-              }
-
-              .icon {
-                font-size: 14px;
-              }
-            }
-          }
-        }
-      }
-    }
-
-    .load-more {
-      display: flex;
-      justify-content: center;
-      margin-top: 20px;
-
-      button {
-        padding: 10px 20px;
-        background: transparent;
-        border: 2px solid themed("accent");
-        color: themed("accent");
-        border-radius: var(--border-radius-lg);
-        font-weight: 600;
-        cursor: pointer;
-        transition: all var(--transition-normal);
-
-        &:hover {
-          background: themed("accent");
-          color: white;
-          transform: translateY(-2px);
-        }
-      }
-    }
-
-    .empty-state {
-      text-align: center;
-      padding: 40px 20px;
-      color: themed("textColorSoft");
-
-      .icon {
-        font-size: 48px;
-        margin-bottom: 16px;
-        opacity: 0.5;
-      }
-
-      .title {
-        font-size: 18px;
-        font-weight: 600;
+    background: transparent;
+    min-height: auto;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    margin-top: 12px;
+    color: themed("textColor");
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+      'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+    
+    .comments-container {
+      width: 100%;
+      max-width: 100%;
+      background: themed("bgCard");
+      border-top: 1px solid themed("borderSoft");
+      padding: 8px 0;
+      margin-bottom: 8px;
+      
+      .comments-header { 
+        font-weight: 600; 
+        font-size: 16px;
         margin-bottom: 8px;
+        padding-left: 12px;
       }
-
-      .subtitle {
+      
+      .comment { 
+        display: flex; 
+        gap: 10px; 
+        padding: 8px 12px; 
+        align-items: flex-start;
+        
+        .avatar { 
+          width: 32px; 
+          height: 32px; 
+          border-radius: 50%; 
+          overflow: hidden; 
+          flex: 0 0 32px;
+          
+          img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+          }
+        }
+        
+        .body { 
+          flex: 1;
+          
+          .meta { 
+            display: flex; 
+            align-items: center; 
+            gap: 8px;
+            
+            .name { 
+              font-weight: 600; 
+              font-size: 15px;
+            }
+            
+            .time { 
+              color: themed("textColorMuted"); 
+              font-size: 13px;
+            }
+            
+            .likes { 
+              margin-left: auto; 
+              color: themed("textColorMuted"); 
+              display: flex; 
+              align-items: center; 
+              gap: 8px; 
+              font-size: 13px;
+              
+              .heart { 
+                color: themed("danger");
+              }
+            }
+          }
+          
+          .text { 
+            margin-top: 6px; 
+            color: themed("textColor"); 
+            font-size: 15px; 
+            line-height: 1.34;
+          }
+          
+          .controls { 
+            display: flex; 
+            align-items: center; 
+            gap: 12px; 
+            margin-top: 10px;
+            
+            a { 
+              color: themed("accent"); 
+              font-size: 13px; 
+              text-decoration: none;
+              
+              &:hover {
+                text-decoration: underline;
+              }
+            }
+          }
+        }
+      }
+      
+      .comments-view-more { 
+        text-align: center; 
+        color: themed("accent"); 
+        margin-top: 8px; 
         font-size: 14px;
-        opacity: 0.8;
+        cursor: pointer;
+        
+        &:hover {
+          text-decoration: underline;
+        }
+      }
+      
+      .error, .loading {
+        text-align: center;
+        padding: 20px;
+        color: themed("textColorMuted");
       }
     }
-
-    @include mobile {
-      padding: 16px;
-      margin-top: 16px;
-
-      .write {
-        padding: 12px;
-        gap: 12px;
-
-        .avatar img {
-          width: 36px;
-          height: 36px;
-        }
-
-        .input-section .input-wrapper input {
-          padding: 10px 12px;
-          font-size: 13px;
-        }
-
-        .actions .submit-btn {
-          padding: 6px 12px;
-          font-size: 12px;
+    
+    .comments-composer { 
+      width: 100%; 
+      background: themed("bgCard"); 
+      padding: 8px 12px;
+      border-top: 1px solid themed("borderSoft");
+      
+      .comments-emoji-row { 
+        background: transparent; 
+        display: flex; 
+        gap: 14px; 
+        padding: 6px 0; 
+        align-items: center;
+        
+        .emoji-item { 
+          font-size: 20px; 
+          opacity: 0.95;
+          cursor: pointer;
+          
+          &:hover {
+            transform: scale(1.2);
+          }
         }
       }
-
-      .comments-list .comment {
-        padding: 12px;
-        gap: 10px;
-
-        .avatar img {
-          width: 32px;
-          height: 32px;
-        }
-
-        .content {
-          .header .name {
-            font-size: 13px;
+      
+      .comments-input-wrap { 
+        display: flex; 
+        gap: 8px; 
+        align-items: center; 
+        margin-top: 6px;
+        
+        .comments-user-avatar { 
+          width: 36px; 
+          height: 36px; 
+          border-radius: 50%; 
+          overflow: hidden;
+          
+          img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
           }
-
-          .text {
-            font-size: 13px;
+        }
+        
+        .comments-input { 
+          flex: 1; 
+          background: themed("input-bg"); 
+          border-radius: 30px; 
+          padding: 10px 14px; 
+          color: themed("textColor"); 
+          border: 1px solid themed("borderSoft");
+          outline: none;
+          
+          &:focus {
+            border-color: themed("accent");
           }
         }
+        
+        .comments-send-btn { 
+          width: 36px; 
+          height: 36px; 
+          display: flex; 
+          align-items: center; 
+          justify-content: center;
+          background: themed("accent");
+          border: none;
+          border-radius: 50%;
+          color: #fff;
+          cursor: pointer;
+          
+          &:hover {
+            background: themed("accentHover");
+          }
+          
+          &:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+          }
+        }
+      }
+    }
+    
+    /* responsiveness */
+    @include mobile {
+      .comments-sheet {
+        border-radius: 16px 16px 12px 12px;
       }
     }
   }
