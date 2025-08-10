@@ -12,6 +12,7 @@
   z-index: 1000;
   padding: 0;
   animation: fadeIn 0.3s ease-out;
+  box-sizing: border-box;
 
   @keyframes fadeIn {
     from { opacity: 0; }
@@ -22,11 +23,14 @@
   .messages-container {
     background: var(--bg);
     width: 100vw;
-    height: 100vh;
+    height: calc(100vh - env(safe-area-inset-top, 0px));
     display: flex;
     overflow: hidden;
     position: relative;
     border-radius: 0;
+    margin-top: env(safe-area-inset-top, 0);
+    box-sizing: border-box;
+    padding-top: 10px; // Add padding to prevent content from touching the top
 
     // Desktop styles
     @media (min-width: 769px) {
@@ -228,7 +232,8 @@
             }
 
             &::placeholder {
-              color: var(--text-color-secondary);
+              color: white;
+              opacity: 0.8;
             }
 
             &:disabled {
@@ -274,7 +279,7 @@
               margin: 0;
               font-size: 14px;
               font-weight: 600;
-              color: var(--text-color-secondary);
+              color: white;
               text-transform: uppercase;
               letter-spacing: 0.5px;
             }
@@ -506,7 +511,7 @@
 
               .user-name {
                 font-weight: 600;
-                color: var(--text-color);
+                color: white;
                 margin: 0;
                 font-size: 14px;
                 white-space: nowrap;
@@ -520,7 +525,8 @@
 
               .message-time {
                 font-size: 11px;
-                color: var(--text-color-secondary);
+                color: white;
+                opacity: 0.8;
                 font-weight: 500;
                 flex-shrink: 0;
                 margin-left: 8px;
@@ -533,7 +539,8 @@
 
             .last-message {
               font-size: 12px;
-              color: var(--text-color-secondary);
+              color: white;
+              opacity: 0.9;
               line-height: 1.4;
 
               @media (min-width: 769px) {
@@ -542,7 +549,7 @@
 
               .you-prefix {
                 font-weight: 600;
-                color: var(--primary-color);
+                color: white;
               }
 
               .message-preview, .suggestion-text {
@@ -872,6 +879,7 @@
                 background: linear-gradient(135deg, var(--primary-color), #8b5cf6);
                 color: white;
                 border-bottom-right-radius: 6px;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 
                 @media (min-width: 769px) {
                   border-bottom-right-radius: 8px;
@@ -937,6 +945,15 @@
                 color: var(--text-color);
                 border-bottom-left-radius: 6px;
                 border: 1px solid var(--border);
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+                
+                // Enhanced light mode visibility
+                @media (prefers-color-scheme: light) {
+                  background: #f0f2f5;
+                  border: 1px solid #ddd;
+                  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+                  color: #333;
+                }
 
                 @media (min-width: 769px) {
                   border-bottom-left-radius: 8px;
@@ -961,6 +978,12 @@
               line-height: 1.4;
               position: relative;
               box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+              
+              // Enhanced light mode visibility
+              @media (prefers-color-scheme: light) {
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+                border: 1px solid #e0e0e0;
+              }
 
               @media (min-width: 769px) {
                 padding: 12px 16px;
@@ -970,6 +993,13 @@
               p {
                 margin: 0 0 6px 0;
                 font-size: 13px;
+                font-weight: 500; // Slightly bolder text for better readability
+                
+                // Enhanced light mode visibility
+                @media (prefers-color-scheme: light) {
+                  color: #222; // Even darker text in light mode for better contrast
+                  text-shadow: 0 0 1px rgba(0, 0, 0, 0.05); // Subtle text shadow for better readability
+                }
 
                 @media (min-width: 769px) {
                   margin: 0 0 8px 0;

@@ -230,6 +230,41 @@ io.on("connection", (socket) => {
     const onlineUserIds = Array.from(connectedUsers.keys());
     socket.emit("online_users", onlineUserIds);
   });
+  
+  // Handle message read events
+  socket.on("mark_messages_read", async (data) => {
+    try {
+      const { senderId } = data;
+      if (!senderId) return;
+      
+      // Update messages in database
+      await Message.updateMany(
+        {
+          senderId: senderId,
+          receiverId: socket.userId,
+          read: false
+        },
+        {
+          read: true,
+          readAt: new Date()
+        }
+      );
+      
+      // Notify sender that messages were read
+      const senderSocketId = connectedUsers.get(senderId);
+      if (senderSocketId) {
+        io.to(senderSocketId).emit("messages_read", {
+          byUserId: socket.userId
+        });
+      }
+      
+      // Emit event to update unread count for the current user
+      socket.emit("unread_count_update");
+      
+    } catch (error) {
+      console.error("Error marking messages as read:", error);
+    }
+  });
 
   // Handle disconnect
   socket.on("disconnect", () => {

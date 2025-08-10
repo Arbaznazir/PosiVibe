@@ -274,38 +274,104 @@
       @include small-mobile {
         gap: 8px;
       }
-
+      
       @include dev-tools-open {
         gap: 15px;
       }
-
+      
       .nav-link {
+        position: relative;
         display: flex;
         align-items: center;
         gap: 8px;
         color: themed("textColor");
-        text-decoration: none;
         font-size: 14px;
         padding: 8px 12px;
         border-radius: 20px;
         transition: all 0.2s ease;
+        cursor: pointer;
         white-space: nowrap;
-
+        flex-shrink: 0;
+        text-decoration: none;
+        font-weight: 500;
+        background-color: rgba(themed("accent"), 0.1);
+        border: 1px solid rgba(themed("accent"), 0.2);
+        
+        &:hover {
+          background-color: rgba(themed("accent"), 0.15);
+          transform: translateY(-1px);
+          box-shadow: 0 2px 8px rgba(themed("accent"), 0.15);
+        }
+        
+        &:active {
+          transform: translateY(0);
+          box-shadow: none;
+        }
+        
         svg {
           font-size: 20px;
-          color: themed("textColorSoft");
+          color: themed("accent");
         }
-
+        
         span {
+          color: themed("textColor");
+          font-weight: 600;
+          
           @include mobile {
             display: none;
           }
+        }
+        
+        @include mobile {
+          padding: 8px;
+        }
+        
+        @include small-mobile {
+          padding: 6px;
+        }
+      }
+    }
 
-          @include dev-tools-open {
-            display: none;
+      .nav-item {
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: themed("textColor");
+        font-size: 14px;
+        padding: 8px 12px;
+        border-radius: 20px;
+        transition: all 0.2s ease;
+        cursor: pointer;
+        white-space: nowrap;
+        flex-shrink: 0;
+        
+        &.messages-nav {
+          display: flex;
+          align-items: center;
+          
+          .clear-badge {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background-color: themed("textColorSoft");
+            color: themed("bg");
+            font-size: 14px;
+            font-weight: bold;
+            margin-left: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            
+            &:hover {
+              background-color: themed("textColor");
+              transform: scale(1.1);
+            }
           }
         }
-
+        
         &:hover {
           background-color: themed("bgSoft");
           transform: translateY(-1px);
@@ -453,6 +519,32 @@
         cursor: pointer;
         white-space: nowrap;
         flex-shrink: 0;
+        
+        &.messages-nav {
+          display: flex;
+          align-items: center;
+          
+          .clear-badge {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background-color: themed("textColorSoft");
+            color: themed("bg");
+            font-size: 14px;
+            font-weight: bold;
+            margin-left: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            
+            &:hover {
+              background-color: themed("textColor");
+              transform: scale(1.1);
+            }
+          }
+        }
 
         svg {
           font-size: 20px;
@@ -658,7 +750,7 @@
       }
     }
   }
-}
+
 
 // Animations
 @keyframes slideDown {

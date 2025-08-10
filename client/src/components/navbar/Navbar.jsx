@@ -49,12 +49,22 @@ const Navbar = () => {
   });
 
   // Fetch unread message count
-  const { data: unreadMessages } = useQuery({
+  const { data: unreadMessages, refetch: refetchUnreadMessages } = useQuery({
     queryKey: ['messages-unread'],
     queryFn: () => makeRequest.get('/messages/unread/count').then(res => res.data),
     enabled: !!currentUser,
     refetchInterval: 30000, // Refetch every 30 seconds
   });
+  
+  // Function to clear message notifications
+  const clearMessageNotifications = async () => {
+    try {
+      await makeRequest.post('/messages/clear-notifications');
+      refetchUnreadMessages(); // Refresh the unread count
+    } catch (err) {
+      console.error("Error clearing message notifications:", err);
+    }
+  };
 
   // Check time limit every minute
   useEffect(() => {
@@ -71,7 +81,7 @@ const Navbar = () => {
   const handleLogout = async () => {
     try {
       await logout();
-      navigate("/login");
+      navigate("/"); // Redirect to home page instead of login
     } catch (err) {
       console.error(err);
     }
@@ -235,11 +245,19 @@ const Navbar = () => {
         )}
         
         {/* Messages */}
-        <div className="nav-item messages-nav" onClick={() => setMessagesOpen(!messagesOpen)}>
+        <div className="nav-link messages-nav" onClick={() => setMessagesOpen(!messagesOpen)}>
           <EmailOutlinedIcon />
           <span>Messages</span>
           {unreadMessages?.count > 0 && (
             <span className="counter">{unreadMessages.count}</span>
+          )}
+          {unreadMessages?.count > 0 && (
+            <div className="clear-badge" onClick={(e) => {
+              e.stopPropagation();
+              clearMessageNotifications();
+            }} title="Clear notification badge">
+              ×
+            </div>
           )}
         </div>
         <Messages 

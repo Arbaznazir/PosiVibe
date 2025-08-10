@@ -101,10 +101,17 @@ const Messages = ({ isOpen, onClose }) => {
   useEffect(() => {
     if (fetchedMessages.length > 0) {
       setMessages(fetchedMessages);
-    } else if (selectedUserId) {
+      
+      // Mark messages as read when conversation is opened
+      if (selectedUserId) {
+        socketService.markMessagesAsRead(selectedUserId);
+        // Invalidate unread count query to update badge
+        queryClient.invalidateQueries(['messages-unread']);
+      }
+    } else {
       setMessages([]);
     }
-  }, [fetchedMessages, selectedUserId]);
+  }, [fetchedMessages, selectedUserId, queryClient]);
 
   // Socket.IO setup
   useEffect(() => {

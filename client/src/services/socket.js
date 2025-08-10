@@ -210,6 +210,28 @@ class SocketService {
       this.socket.on("user_offline", callback);
     }
   }
+  
+  // Mark messages from a specific user as read
+  markMessagesAsRead(senderId) {
+    if (this.socket && this.connected) {
+      console.log(`📩 Marking messages from ${senderId} as read`);
+      this.socket.emit("mark_messages_read", { senderId });
+    }
+  }
+  
+  // Listen for messages read event
+  onMessagesRead(callback) {
+    if (this.socket) {
+      this.socket.on("messages_read", callback);
+    }
+  }
+  
+  // Listen for unread count updates
+  onUnreadCountUpdate(callback) {
+    if (this.socket) {
+      this.socket.on("unread_count_update", callback);
+    }
+  }
 
   onOnlineUsersUpdate(callback) {
     if (this.socket) {

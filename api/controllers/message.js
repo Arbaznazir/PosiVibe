@@ -152,7 +152,7 @@ export const getMessages = async (req, res) => {
           .skip(skip)
           .limit(limit);
 
-        // Mark messages as read
+        // Mark messages as read - fix to ensure all messages from this user are marked as read
         await Message.updateMany(
           {
             senderId: userId,
@@ -164,6 +164,9 @@ export const getMessages = async (req, res) => {
             readAt: new Date(),
           }
         );
+        
+        // Force invalidate unread count cache
+        req.app.get('socketService')?.emitEvent('message:read', { userId: userInfo.id });
 
         res.status(200).json(messages.reverse()); // Reverse to show oldest first
       } catch (error) {
@@ -263,6 +266,39 @@ export const getUnreadCount = async (req, res) => {
         res.status(200).json({ count: unreadCount });
       } catch (error) {
         console.error("Get unread count error:", error);
+        res.status(500).json("Internal server error");
+      }
+    }
+  );
+};
+
+// Clear message notifications (mark all as read)
+export const clearMessageNotifications = async (req, res) => {
+  const token = req.cookies.accessToken;
+  if (!token) return res.status(401).json("Not logged in!");
+
+  jwt.verify(
+    token,
+    process.env.JWT_SECRET || "secretkey",
+    async (err, userInfo) => {
+      if (err) return res.status(403).json("Token is not valid!");
+
+      try {
+        // Mark all messages as read but don't change their visibility
+        await Message.updateMany(
+          {
+            receiverId: userInfo.id,
+            read: false
+          },
+          {
+            read: true,
+            readAt: new Date()
+          }
+        );
+
+        res.status(200).json({ success: true, message: "All message notifications cleared" });
+      } catch (error) {
+        console.error("Clear message notifications error:", error);
         res.status(500).json("Internal server error");
       }
     }
