@@ -296,7 +296,7 @@ const Landing = () => {
             </div>
             <div className="footer-column">
               <h4>Company</h4>
-              <a href="#about" aria-label="About Us">About Us</a>
+              <Link to="/about" aria-label="About Us">About Us</Link>
               <a href="#careers" aria-label="Careers">Careers</a>
               <a href="#contact" aria-label="Contact">Contact</a>
             </div>

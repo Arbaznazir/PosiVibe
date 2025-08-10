@@ -1,6 +1,7 @@
 import Login from "./pages/login/Login";
 import Register from "./pages/register/Register";
 import Landing from "./pages/landing/Landing";
+import About from "./pages/about/About";
 import TimeLimitPage from "./pages/timeLimit/TimeLimit";
 import MessagesPage from "./pages/messages/Messages";
 import Friends from "./pages/friends/Friends";
@@ -122,6 +123,10 @@ function App() {
     {
       path: "/",
       element: <Landing />,
+    },
+    {
+      path: "/about",
+      element: <About />,
     },
     {
       path: "/profile/:id",
