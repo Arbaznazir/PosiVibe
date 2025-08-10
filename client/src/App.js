@@ -3,6 +3,7 @@ import Register from "./pages/register/Register";
 import Landing from "./pages/landing/Landing";
 import About from "./pages/about/About";
 import Terms from "./pages/terms/Terms";
+import Privacy from "./pages/privacy/Privacy";
 import TimeLimitPage from "./pages/timeLimit/TimeLimit";
 import MessagesPage from "./pages/messages/Messages";
 import Friends from "./pages/friends/Friends";
@@ -132,6 +133,10 @@ function App() {
     {
       path: "/terms",
       element: <Terms />,
+    },
+    {
+      path: "/privacy",
+      element: <Privacy />,
     },
     {
       path: "/profile/:id",

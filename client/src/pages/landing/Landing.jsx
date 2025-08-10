@@ -303,7 +303,7 @@ const Landing = () => {
             <div className="footer-column">
               <h4>Legal</h4>
               <Link to="/terms" aria-label="Terms of Service">Terms of Service</Link>
-              <a href="#privacy" aria-label="Privacy Policy">Privacy Policy</a>
+              <Link to="/privacy" aria-label="Privacy Policy">Privacy Policy</Link>
               <a href="#guidelines" aria-label="Community Guidelines">Community Guidelines</a>
             </div>
           </div>

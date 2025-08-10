@@ -192,6 +192,7 @@ const Terms = () => {
             </p>
             <p className="contact-info">
               Email: arbaznazir74@gmail.com<br />
+              Address: Kuchmulla Tral, Pulwama, Kashmir<br />
               GitHub: <a href="https://github.com/Arbaznazir/PosiVibe" target="_blank" rel="noopener noreferrer">https://github.com/Arbaznazir/PosiVibe</a>
             </p>
             <p>
