@@ -83,8 +83,18 @@ const Login = () => {
     }
 
     try {
+      // Function to get the API base URL
+      const getApiBaseUrl = () => {
+        // If we're on a phone/different device, use the network IP
+        if (window.location.hostname !== 'localhost') {
+          return `http://${window.location.hostname}:8800/api`;
+        }
+        // Fallback to localhost
+        return "http://localhost:8800/api";
+      };
+      
       // Make API call to reset password
-      await axios.post("http://localhost:8800/api/auth/reset-password", {
+      await axios.post(`${getApiBaseUrl()}/auth/reset-password`, {
         username: forgotPasswordInputs.username,
         newPassword: forgotPasswordInputs.newPassword
       });

@@ -35,10 +35,33 @@ import Message from "./models/Message.js";
 // Ensure MongoDB connection is established
 console.log("🔄 Initializing MongoDB connection...");
 
+// Configure CORS middleware
+app.use(cors({
+  origin: function(origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    // Allow all origins for development
+    return callback(null, true);
+  },
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+  credentials: true,
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"]
+}));
+
+// Parse cookies
+app.use(cookieParser());
+
+// Parse JSON bodies
+app.use(express.json());
+
 // Initialize Socket.IO
 const io = new Server(server, {
   cors: {
-    origin: ["http://localhost:3000", "http://localhost:3001"],
+    // Allow connections from any origin (will be restricted by credentials)
+    origin: (origin, callback) => {
+      callback(null, true); // Allow all origins, but still require credentials
+    },
     credentials: true,
   },
 });
@@ -416,6 +439,8 @@ app.use((req, res) => {
 
 // Start server
 const PORT = process.env.PORT || 8800;
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`📱 Local: http://localhost:${PORT}`);
+  console.log(`🌐 Network: http://YOUR_IP_ADDRESS:${PORT}`);
 });

@@ -46,7 +46,17 @@ class SocketService {
       this.disconnect();
     }
 
-    this.socket = io("http://localhost:8800", {
+    // Function to get the socket server URL
+    const getSocketUrl = () => {
+      // If we're on a phone/different device, use the network IP
+      if (window.location.hostname !== 'localhost') {
+        return `http://${window.location.hostname}:8800`;
+      }
+      // Fallback to localhost
+      return "http://localhost:8800";
+    };
+
+    this.socket = io(getSocketUrl(), {
       auth: {
         token: authToken,
       },

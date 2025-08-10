@@ -4,9 +4,25 @@ import { toast } from "react-hot-toast";
 
 export const AuthContext = createContext();
 
-// Create axios instance with base URL
+// Function to get the API base URL
+function getApiBaseUrl() {
+  // Try to use the network IP first
+  try {
+    // If we're on a phone/different device, use the network IP
+    if (window.location.hostname !== 'localhost') {
+      return `http://${window.location.hostname}:8800/api`;
+    }
+  } catch (error) {
+    console.error("Error determining API URL:", error);
+  }
+  
+  // Fallback to localhost
+  return "http://localhost:8800/api";
+}
+
+// Create axios instance with dynamic base URL
 const api = axios.create({
-  baseURL: "http://localhost:8800/api",
+  baseURL: getApiBaseUrl(),
   withCredentials: true,
 });
 

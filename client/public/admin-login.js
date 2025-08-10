@@ -3,7 +3,17 @@ const loginAsAdmin = async () => {
   try {
     console.log("🔐 Logging in as admin...");
 
-    const response = await fetch("http://localhost:8800/api/auth/login", {
+    // Function to get the API base URL
+    const getApiBaseUrl = () => {
+      // If we're on a phone/different device, use the network IP
+      if (window.location.hostname !== 'localhost') {
+        return `http://${window.location.hostname}:8800/api`;
+      }
+      // Fallback to localhost
+      return "http://localhost:8800/api";
+    };
+    
+    const response = await fetch(`${getApiBaseUrl()}/auth/login`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
