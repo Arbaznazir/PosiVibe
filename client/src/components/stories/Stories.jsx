@@ -16,6 +16,7 @@ import ZoomOutIcon from "@mui/icons-material/ZoomOut";
 import toast from "react-hot-toast";
 import Avatar from "../avatar/Avatar";
 import Cropper from "react-easy-crop";
+import ContentModerationPopup from "../contentModerationPopup/ContentModerationPopup";
 
 const Stories = () => {
   const { currentUser } = useContext(AuthContext);
@@ -33,6 +34,14 @@ const Stories = () => {
   const [isPaused, setIsPaused] = useState(false);
   const [showReactions, setShowReactions] = useState(false);
   const [storyReaction, setStoryReaction] = useState(null);
+  const [moderationPopup, setModerationPopup] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    details: "",
+    suggestions: [],
+    severity: "medium"
+  });
   const fileInputRef = useRef(null);
   
   // Image cropping states
@@ -69,9 +78,24 @@ const Stories = () => {
         
         // Check if this is a moderation error
         if (errorResponse?.error === "Content not allowed") {
+          // Set regular moderation error for in-modal display
           setModerationError({
             message: errorResponse.message || "Your story contains inappropriate content. Please modify your message.",
             reason: errorResponse.reason
+          });
+          
+          // Also show the popup like posts do
+          setModerationPopup({
+            isOpen: true,
+            title: "Content Guidelines Notice",
+            message: errorResponse.message || "Your story contains inappropriate content.",
+            details: errorResponse.reason || "The content you're trying to share doesn't meet our community guidelines.",
+            suggestions: [
+              "Remove any inappropriate language or content",
+              "Choose a different image that follows our guidelines",
+              "Keep your content positive and respectful"
+            ],
+            severity: "medium"
           });
         } else {
           toast.error(errorResponse?.message || "Failed to create story");
@@ -261,7 +285,9 @@ const Stories = () => {
         formData.append("file", selectedFile.file);
 
         const uploadRes = await makeRequest.post("/upload", formData);
-        mediaFilename = uploadRes.data;
+        // Make sure we're using the full URL returned from the upload endpoint
+        mediaFilename = uploadRes.data.url || uploadRes.data;
+        console.log("Uploaded media URL:", mediaFilename);
       }
 
       // Create story
@@ -575,28 +601,18 @@ const Stories = () => {
             setShowDeleteConfirm(false);
             setIsPaused(false);
           }}>
-            <div className="delete-confirm-modal" onClick={(e) => e.stopPropagation()}>
-              <h3>Delete Story?</h3>
-              <p>This action cannot be undone.</p>
-              <div className="modal-actions">
-                <button 
-                  className="cancel-btn" 
-                  onClick={() => {
-                    setShowDeleteConfirm(false);
-                    setIsPaused(false);
-                  }}
-                >
-                  Cancel
-                </button>
-                <button 
-                  className="delete-btn" 
-                  onClick={() => {
-                    handleDeleteStory();
-                    setShowDeleteConfirm(false);
-                  }}
-                >
-                  Delete
-                </button>
+            <div className="delete-confirm-modal">
+              <div className="confirm-content">
+                <h3>Delete Story?</h3>
+                <p>This action cannot be undone.</p>
+                <div className="confirm-actions">
+                  <button className="cancel-btn" onClick={() => setShowDeleteConfirm(false)}>
+                    Cancel
+                  </button>
+                  <button className="delete-btn" onClick={handleDeleteStory}>
+                    Delete
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -620,7 +636,10 @@ const Stories = () => {
           {moderationError && (
             <div className="moderation-error">
               <ErrorOutlineIcon />
-              {moderationError.message}
+              <div className="error-content">
+                <strong>{moderationError.message}</strong>
+                {moderationError.reason && <p>Reason: {moderationError.reason}</p>}
+              </div>
             </div>
           )}
           
@@ -871,9 +890,20 @@ const Stories = () => {
       {/* Story Creation Modal */}
       {showCreateModal && renderCreateStoryModal()}
 
-
       {/* Story Viewer */}
       {renderStoryViewer()}
+      
+      {/* Content Moderation Popup */}
+      <ContentModerationPopup
+        isOpen={moderationPopup.isOpen}
+        onClose={() => setModerationPopup(prev => ({ ...prev, isOpen: false }))}
+        title={moderationPopup.title}
+        message={moderationPopup.message}
+        details={moderationPopup.details}
+        suggestions={moderationPopup.suggestions}
+        severity={moderationPopup.severity}
+        canRetry={true}
+      />
     </div>
   );
 };

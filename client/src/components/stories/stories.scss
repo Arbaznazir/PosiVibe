@@ -246,6 +246,38 @@
         }
       }
       
+      .moderation-error {
+        background-color: rgba(255, 0, 0, 0.1);
+        border: 1px solid #ff4d4d;
+        border-radius: 8px;
+        padding: 12px;
+        margin: 10px 20px;
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        
+        svg {
+          color: #ff4d4d;
+          flex-shrink: 0;
+        }
+        
+        .error-content {
+          flex: 1;
+          
+          strong {
+            display: block;
+            margin-bottom: 5px;
+            color: #ff4d4d;
+          }
+          
+          p {
+            margin: 0;
+            font-size: 0.9em;
+            opacity: 0.9;
+          }
+        }
+      }
+      
       .story-type-selector {
         display: flex;
         padding: 16px 20px;
@@ -990,6 +1022,12 @@
             pointer-events: none;
             
             .reaction-emoji {
+              font-size: 80px;
+              animation: reactionAnimation 1s ease-out;
+              filter: drop-shadow(0 0 10px rgba(0, 0, 0, 0.5));
+            }
+            
+            .moderation-error {
               font-size: 80px;
               animation: reactionAnimation 1s ease-out;
               filter: drop-shadow(0 0 10px rgba(0, 0, 0, 0.5));
