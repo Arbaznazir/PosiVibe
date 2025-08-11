@@ -54,7 +54,7 @@ const About = () => {
       image: "/danish.jpg",
       social: {
         github: "https://github.com/daanixhmanzoor786",
-        linkedin: "https://linkedin.com/in/danish",
+        linkedin: "https://in.linkedin.com/in/danish-manzoor-803944307",
         twitter: "https://x.com/maalik_daanixh"
       }
     }
