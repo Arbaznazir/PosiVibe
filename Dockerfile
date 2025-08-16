@@ -1,4 +1,4 @@
-FROM node:18-bullseye
+FROM node:16-buster
 
 WORKDIR /app
 
@@ -7,7 +7,6 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     python3 \
     libvips-dev \
-    git \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy package files first for better caching
@@ -17,27 +16,27 @@ COPY api/package*.json ./api/
 # Install root dependencies
 RUN npm install
 
-# Move to API directory
+# Copy all application files
+COPY . .
+
+# Install API dependencies with special handling for sharp
 WORKDIR /app/api
 
-# Remove any existing sharp installation
-RUN rm -rf node_modules/sharp
+# Modify package.json to remove sharp dependency
+RUN node -e "const pkg = require('./package.json'); delete pkg.dependencies.sharp; require('fs').writeFileSync('./package.json', JSON.stringify(pkg, null, 2));"
 
-# Install API dependencies WITHOUT sharp first
-RUN npm install --omit=optional
+# Install API dependencies without sharp
+RUN npm install
 
-# Install sharp with specific version and all flags
-RUN npm install --platform=linux --arch=x64 sharp@0.32.6 --build-from-source
+# Install sharp with specific version and flags
+RUN npm install sharp@0.30.7 --unsafe-perm
 
 # Verify sharp installation
-RUN node -e "try { require('sharp'); console.log('Sharp installed successfully'); } catch(e) { console.error(e); process.exit(1); }"
-
-# Return to app directory and copy the rest of the application
-WORKDIR /app
-COPY . .
+RUN node -e "try { const sharp = require('sharp'); console.log('Sharp version:', sharp.versions.sharp); } catch(e) { console.error('Sharp installation failed:', e); process.exit(1); }"
 
 # Expose the port the app runs on
 EXPOSE 8800
 
 # Command to run the application
+WORKDIR /app
 CMD ["node", "api/index.js"]
