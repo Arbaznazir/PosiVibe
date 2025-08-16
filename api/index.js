@@ -465,6 +465,11 @@ app.use(
   timeLimitMiddleware
 );
 
+// Health check endpoint for Koyeb
+app.get("/", (req, res) => {
+  res.status(200).json({ status: "ok", message: "PosiVibe API is running" });
+});
+
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
