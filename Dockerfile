@@ -1,4 +1,4 @@
-FROM node:18
+FROM node:18-bullseye
 
 WORKDIR /app
 
@@ -17,20 +17,20 @@ COPY api/package*.json ./api/
 # Install root dependencies
 RUN npm install
 
-# Install API dependencies with explicit platform flags for sharp
+# Move to API directory
 WORKDIR /app/api
 
-# Clean any existing sharp installation to avoid conflicts
+# Remove any existing sharp installation
 RUN rm -rf node_modules/sharp
 
-# Install sharp with explicit platform flags
-RUN npm install --platform=linux --arch=x64 sharp
+# Install API dependencies WITHOUT sharp first
+RUN npm install --omit=optional
 
-# Install remaining dependencies
-RUN npm install --include=optional
+# Install sharp with specific version and all flags
+RUN npm install --platform=linux --arch=x64 sharp@0.32.6 --build-from-source
 
-# Fix for ES modules compatibility
-RUN npm rebuild
+# Verify sharp installation
+RUN node -e "try { require('sharp'); console.log('Sharp installed successfully'); } catch(e) { console.error(e); process.exit(1); }"
 
 # Return to app directory and copy the rest of the application
 WORKDIR /app
