@@ -1,0 +1,12 @@
+{
+  "name": "posivibe-api",
+  "description": "PosiVibe API - Backend for positive social networking platform with digital wellness features",
+  "repository": "https://github.com/Arbaznazir/PosiVibe",
+  "logo": "https://node-js-sample.herokuapp.com/node.png",
+  "keywords": ["node", "express", "social-media", "api"],
+  "buildpacks": [
+    {
+      "url": "heroku/nodejs"
+    }
+  ]
+}

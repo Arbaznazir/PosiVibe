@@ -40,9 +40,10 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "start": "nodemon index.js",
+    "start": "node index.js",
     "dev": "nodemon index.js",
     "start:prod": "node index.js",
+    "build": "npm install",
     "seed": "node seed.js"
   },
   "keywords": [
