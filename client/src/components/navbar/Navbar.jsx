@@ -228,7 +228,7 @@ const Navbar = () => {
         </div>
       </div>
       <div className="right">
-        <Link to="/app" className="nav-link">
+        <Link to="/app" className="nav-link home-link">
           <HomeOutlinedIcon />
           <span>Home</span>
         </Link>

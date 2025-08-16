@@ -358,6 +358,7 @@ body {
 
       @include mobile {
         padding: 0 5px;
+        padding-bottom: calc(70px + env(safe-area-inset-bottom)); // space for BottomNav
       }
 
       @include small-mobile {

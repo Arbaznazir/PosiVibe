@@ -47,6 +47,7 @@
     @include mobile {
       padding: 0 10px;
       height: 50px;
+      justify-content: flex-start; // place right group next to left
     }
 
     @include small-mobile {
@@ -68,6 +69,8 @@
 
       @include mobile {
         gap: 15px;
+        flex: 0 1 auto; // don't stretch; fit content
+        margin-right: 5px; // 5px gap to dark mode button
       }
 
       @include small-mobile {
@@ -251,7 +254,10 @@
         }
 
         @include mobile {
-          display: none;
+          display: flex;
+          width: auto;
+          flex: 1 1 auto;
+          padding: 6px 10px;
         }
 
         @include dev-tools-open {
@@ -328,6 +334,19 @@
         
         @include small-mobile {
           padding: 6px;
+        }
+      }
+      
+      // Hide Home and Messages in mobile (moved to BottomNav)
+      .nav-link.home-link {
+        @include mobile {
+          display: none;
+        }
+      }
+
+      .nav-link.messages-nav {
+        @include mobile {
+          display: none;
         }
       }
     }
@@ -493,15 +512,7 @@
         }
 
         @include mobile {
-          padding: 6px 8px;
-          
-          .time-text {
-            font-size: 12px;
-          }
-          
-          svg {
-            font-size: 16px;
-          }
+          display: none;
         }
       }
 
@@ -653,6 +664,10 @@
         border-radius: 20px;
         transition: all 0.2s ease;
         flex-shrink: 0;
+
+        @include mobile {
+          display: none;
+        }
 
         &:hover {
           background-color: themed("bgSoft");

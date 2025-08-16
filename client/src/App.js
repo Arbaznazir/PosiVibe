@@ -18,6 +18,7 @@ import {
   Link,
 } from "react-router-dom";
 import Navbar from "./components/navbar/Navbar";
+import BottomNav from "./components/bottomNav/BottomNav";
 import LeftBar from "./components/leftBar/LeftBar";
 import RightBar from "./components/rightBar/RightBar";
 import Home from "./pages/home/Home";
@@ -66,6 +67,8 @@ function App() {
               <RightBar />
             </aside>
           </div>
+          {/* Mobile-only bottom navigation (visibility controlled via CSS) */}
+          <BottomNav />
           <Toaster
             position="top-right"
             toastOptions={{
