@@ -2,22 +2,18 @@ import axios from "axios";
 
 // Function to get the API base URL
 function getApiBaseUrl() {
+  console.log("Environment API URL:", process.env.REACT_APP_API_BASE_URL);
+  
   // 1) Prefer explicit env var (for production or custom dev)
   const fromEnv = process.env.REACT_APP_API_BASE_URL;
   if (fromEnv && typeof fromEnv === "string") {
-    return fromEnv.endsWith("/") ? fromEnv : `${fromEnv}/`;
+    const url = fromEnv.endsWith("/") ? fromEnv : `${fromEnv}/`;
+    console.log("Using API URL from env:", url);
+    return url;
   }
 
-  // 2) Device/LAN development: use current host with port 8800
-  try {
-    if (window.location.hostname && window.location.hostname !== "localhost") {
-      return `http://${window.location.hostname}:8800/api/`;
-    }
-  } catch (error) {
-    console.error("Error determining API URL:", error);
-  }
-
-  // 3) Local development fallback
+  // 2) Local development fallback
+  console.log("Using local development API URL");
   return "http://localhost:8800/api/";
 }
 

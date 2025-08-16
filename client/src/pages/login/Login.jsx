@@ -82,9 +82,10 @@ const Login = () => {
         
         // Function to get the API base URL
         const getApiBaseUrl = () => {
-          // If we're on a phone/different device, use the network IP
-          if (window.location.hostname !== 'localhost') {
-            return `http://${window.location.hostname}:8800/api`;
+          // Use environment variable if available
+          const fromEnv = process.env.REACT_APP_API_BASE_URL;
+          if (fromEnv && typeof fromEnv === "string") {
+            return fromEnv.endsWith("/") ? fromEnv.slice(0, -1) : fromEnv;
           }
           // Fallback to localhost
           return "http://localhost:8800/api";
@@ -133,9 +134,10 @@ const Login = () => {
     try {
       // Function to get the API base URL
       const getApiBaseUrl = () => {
-        // If we're on a phone/different device, use the network IP
-        if (window.location.hostname !== 'localhost') {
-          return `http://${window.location.hostname}:8800/api`;
+        // Use environment variable if available
+        const fromEnv = process.env.REACT_APP_API_BASE_URL;
+        if (fromEnv && typeof fromEnv === "string") {
+          return fromEnv.endsWith("/") ? fromEnv.slice(0, -1) : fromEnv;
         }
         // Fallback to localhost
         return "http://localhost:8800/api";
@@ -232,9 +234,10 @@ const Login = () => {
     try {
       // Function to get the API base URL
       const getApiBaseUrl = () => {
-        // If we're on a phone/different device, use the network IP
-        if (window.location.hostname !== 'localhost') {
-          return `http://${window.location.hostname}:8800/api`;
+        // Use environment variable if available
+        const fromEnv = process.env.REACT_APP_API_BASE_URL;
+        if (fromEnv && typeof fromEnv === "string") {
+          return fromEnv.endsWith("/") ? fromEnv.slice(0, -1) : fromEnv;
         }
         // Fallback to localhost
         return "http://localhost:8800/api";

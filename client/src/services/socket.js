@@ -48,27 +48,31 @@ class SocketService {
 
     // Function to get the socket server URL
     const getSocketUrl = () => {
+      console.log("Getting socket URL...");
+      
       // 1) Explicit env for production/custom deployments
       const envSocket = process.env.REACT_APP_SOCKET_URL;
-      if (envSocket) return envSocket;
+      if (envSocket) {
+        console.log("Using explicit socket URL from env:", envSocket);
+        return envSocket;
+      }
 
       // 2) Derive from API base if provided
       const apiBase = process.env.REACT_APP_API_BASE_URL;
       if (apiBase) {
-        // common forms: https://domain/api/ or http://host:8800/api/
+        // common forms: https://domain/api/ or http://domain/api/
         const trimmed = apiBase.endsWith("/") ? apiBase.slice(0, -1) : apiBase;
         if (trimmed.endsWith("/api")) {
-          return trimmed.slice(0, -4); // drop "/api"
+          const socketUrl = trimmed.slice(0, -4); // drop "/api"
+          console.log("Derived socket URL from API base:", socketUrl);
+          return socketUrl;
         }
+        console.log("Using API base as socket URL:", trimmed);
         return trimmed; // if already root URL
       }
 
-      // 3) Device/LAN development
-      if (window.location.hostname && window.location.hostname !== "localhost") {
-        return `http://${window.location.hostname}:8800`;
-      }
-
-      // 4) Local development
+      // 3) Local development fallback
+      console.log("Using local development socket URL");
       return "http://localhost:8800";
     };
 

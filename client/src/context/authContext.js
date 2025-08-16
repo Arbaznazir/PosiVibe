@@ -6,18 +6,19 @@ export const AuthContext = createContext();
 
 // Function to get the API base URL
 function getApiBaseUrl() {
-  // Try to use the network IP first
-  try {
-    // If we're on a phone/different device, use the network IP
-    if (window.location.hostname !== 'localhost') {
-      return `http://${window.location.hostname}:8800/api`;
-    }
-  } catch (error) {
-    console.error("Error determining API URL:", error);
-  }
+  console.log("Environment API URL in authContext:", process.env.REACT_APP_API_BASE_URL);
   
-  // Fallback to localhost
-  return "http://localhost:8800/api";
+  // 1) Prefer explicit env var (for production or custom dev)
+  const fromEnv = process.env.REACT_APP_API_BASE_URL;
+  if (fromEnv && typeof fromEnv === "string") {
+    const url = fromEnv.endsWith("/") ? fromEnv : `${fromEnv}/`;
+    console.log("Using API URL from env in authContext:", url);
+    return url;
+  }
+
+  // 2) Local development fallback
+  console.log("Using local development API URL in authContext");
+  return "http://localhost:8800/api/";
 }
 
 // Create axios instance with dynamic base URL
