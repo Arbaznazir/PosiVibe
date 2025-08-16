@@ -46,22 +46,41 @@ console.log("🔄 Initializing MongoDB connection...");
 // IMPORTANT: Replace with proper CORS settings after debugging
 
 // 1. Handle all preflight OPTIONS requests
-app.options("*", cors());
+app.options("*", cors({ origin: true, credentials: true }));
 
 // 2. Apply fully permissive CORS middleware to all routes
 app.use(cors({
   origin: true, // Allow all origins
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+  // Let CORS reflect the Access-Control-Request-Headers automatically
   exposedHeaders: ["Content-Range", "X-Content-Range"],
+  optionsSuccessStatus: 204,
+  maxAge: 86400,
 }));
 
 console.log("⚠️ USING FULLY PERMISSIVE CORS FOR DEBUGGING");
 
-// 3. Ensure credentials header is set
+// 3. Robust manual CORS fallback (reflect Origin and short-circuit OPTIONS)
 app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Credentials", true);
+  const origin = req.headers.origin;
+  if (origin) {
+    res.header("Access-Control-Allow-Origin", origin);
+    res.header("Vary", "Origin");
+  }
+  res.header("Access-Control-Allow-Credentials", "true");
+  res.header("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,PATCH,OPTIONS");
+
+  const reqHeaders = req.headers["access-control-request-headers"]; // for preflight
+  if (reqHeaders) {
+    res.header("Access-Control-Allow-Headers", reqHeaders);
+  } else {
+    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
+  }
+
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(204);
+  }
   next();
 });
 
