@@ -1,4 +1,4 @@
-# PosiVibe Deployment Guide
+# PosiVibe Deployment Guide.
 
 ## Backend Deployment on Koyeb
 
