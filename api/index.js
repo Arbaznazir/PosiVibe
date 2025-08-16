@@ -465,26 +465,14 @@ app.use(
   timeLimitMiddleware
 );
 
-// Health check endpoints for Koyeb - moved to top priority
-app.get("/", (req, res) => {
-  console.log("ROOT health check hit");
-  res.status(200).send("OK"); // Simple text response
-});
-
-app.get("/health", (req, res) => {
-  console.log("HEALTH endpoint hit");
-  res.status(200).send("OK"); // Simple text response
-});
-
-app.get("/healthz", (req, res) => {
-  console.log("HEALTHZ endpoint hit");
-  res.status(200).send("OK"); // Simple text response
-});
-
-// Also add a plain text endpoint
-app.get("/ping", (req, res) => {
-  console.log("PING endpoint hit");
+// Simple ping endpoint for testing connections
+app.get("/api/ping", (req, res) => {
   res.status(200).send("pong");
+});
+
+// Health check endpoint for Koyeb
+app.get("/health", (req, res) => {
+  res.status(200).send("OK");
 });
 
 // Routes
@@ -507,12 +495,8 @@ app.use((req, res) => {
 
 // Start server
 const PORT = process.env.PORT || 8800;
-
-// Log the port being used
-console.log(`🔌 Attempting to bind to PORT=${PORT} (from env: ${process.env.PORT || 'not set'})`); 
-
-// Listen on the port without specifying host to let the system decide
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📱 Local: http://localhost:${PORT}`);
+  console.log(`🌐 Network: http://YOUR_IP_ADDRESS:${PORT}`);
 });

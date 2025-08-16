@@ -9,16 +9,6 @@ service:
   ports:
     - port: 8800
       protocol: http
-  healthchecks:
-    readiness:
-      http:
-        path: /ping
-        port: 8800
-      initialDelay: 10s
-      period: 5s
-      timeout: 5s
-      failureThreshold: 3
-      successThreshold: 1
   env:
     - name: NODE_ENV
       value: production
