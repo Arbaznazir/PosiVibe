@@ -1,0 +1,15 @@
+{
+  "app": "posivibe-api",
+  "build": {
+    "builder": "heroku/buildpacks:20",
+    "buildpacks": [
+      {
+        "url": "heroku/nodejs"
+      }
+    ]
+  },
+  "run": {
+    "command": "npm run start:prod",
+    "workdir": "/api"
+  }
+}

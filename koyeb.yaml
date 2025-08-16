@@ -1,0 +1,12 @@
+service:
+  name: posivibe-api
+  type: web
+  source:
+    directory: api
+  buildpacks:
+    - name: nodejs
+  run:
+    command: npm run start:prod
+    workdir: /api
+  ports:
+    - port: 8800

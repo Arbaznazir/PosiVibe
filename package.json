@@ -1,0 +1,16 @@
+{
+  "name": "posivibe-root",
+  "version": "1.0.0",
+  "description": "Root package for PosiVibe project",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "start": "cd api && npm run start:prod",
+    "build": "cd api && npm install"
+  },
+  "workspaces": [
+    "api",
+    "client"
+  ]
+}
