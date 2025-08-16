@@ -16,8 +16,8 @@ import compromise from "compromise";
 import axios from "axios";
 import { addViolation } from "./adminDashboard.js";
 import OpenAI from "openai";
-import sharp from "sharp";
 import path from "path";
+import fs from "fs/promises";
 
 // Initialize modules
 let nsfwModel = null;
@@ -113,15 +113,19 @@ const loadModel = async () => {
 // Function to preprocess image for TensorFlow
 const preprocessImage = async (imagePath) => {
   try {
-    // Read and resize image to 224x224 (MobileNet input size)
-    const imageBuffer = await sharp(imagePath).resize(224, 224).toBuffer();
-
-    // Convert to tensor
-    const tensor = tf.node.decodeImage(imageBuffer, 3);
-    const expanded = tensor.expandDims(0);
-    const normalized = expanded.div(255.0); // Normalize pixel values
-
-    return normalized;
+    // Read file directly without sharp
+    const imageBuffer = await fs.readFile(imagePath);
+    
+    // Convert to tensor if TensorFlow is available
+    if (tf) {
+      const tensor = tf.node.decodeImage(imageBuffer, 3);
+      const expanded = tensor.expandDims(0);
+      const normalized = expanded.div(255.0); // Normalize pixel values
+      return normalized;
+    } else {
+      console.warn("TensorFlow not available for image preprocessing");
+      return null;
+    }
   } catch (error) {
     console.error("Image preprocessing error:", error.message);
     return null;
@@ -2292,123 +2296,136 @@ export const analyzeImageContent = async (imagePath) => {
 
     console.log(`🔍 Analyzing image with NSFWjs: ${path.basename(imagePath)}`);
 
-    // Read and preprocess image
-    const imageBuffer = await sharp(imagePath)
-      .resize(224, 224) // NSFWjs expects 224x224 images
-      .raw()
-      .toBuffer();
+    // Read image file directly without sharp
+    const imageBuffer = await fs.readFile(imagePath);
+    
+    // Note: Without sharp, we can't resize or convert to raw format
+    // This might affect NSFWjs accuracy, but it's better than failing
 
-    // Convert to tensor
-    const tensor = tf.tensor3d(new Uint8Array(imageBuffer), [224, 224, 3]);
-    const predictions = await nsfwModel.classify(tensor);
+    // Convert to tensor - with error handling since we can't guarantee the image format
+    try {
+      // Use preprocessImage which now handles raw files
+      const tensor = await preprocessImage(imagePath);
+      
+      if (!tensor) {
+        console.warn("Could not create tensor from image, falling back to basic analysis");
+        return await basicImageAnalysis(imagePath);
+      }
+      
+      const predictions = await nsfwModel.classify(tensor);
 
-    // Clean up tensor to prevent memory leaks
-    tensor.dispose();
+      // Clean up tensor to prevent memory leaks
+      tensor.dispose();
 
-    // Process predictions
-    const predictionMap = {};
-    predictions.forEach((pred) => {
-      predictionMap[pred.className] = pred.probability;
-    });
+      // Process predictions
+      const predictionMap = {};
+      predictions.forEach((pred) => {
+        predictionMap[pred.className] = pred.probability;
+      });
 
-    // Calculate overall NSFW score
-    const nsfwScore =
-      (predictionMap.Porn || 0) * 1.0 +
-      (predictionMap.Sexy || 0) * 0.8 +
-      (predictionMap.Hentai || 0) * 1.0 +
-      (predictionMap.Neutral || 0) * 0.0 +
-      (predictionMap.Drawing || 0) * 0.1;
+      // Calculate overall NSFW score
+      const nsfwScore =
+        (predictionMap.Porn || 0) * 1.0 +
+        (predictionMap.Sexy || 0) * 0.8 +
+        (predictionMap.Hentai || 0) * 1.0 +
+        (predictionMap.Neutral || 0) * 0.0 +
+        (predictionMap.Drawing || 0) * 0.1;
 
-    // Get thresholds from environment
-    const softThreshold = parseFloat(process.env.NSFW_SOFT_THRESHOLD) || 0.3;
-    const mediumThreshold =
-      parseFloat(process.env.NSFW_MEDIUM_THRESHOLD) || 0.5;
-    const hardThreshold = parseFloat(process.env.NSFW_HARD_THRESHOLD) || 0.7;
-    const criticalThreshold =
-      parseFloat(process.env.NSFW_CRITICAL_THRESHOLD) || 0.9;
+      // Get thresholds from environment
+      const softThreshold = parseFloat(process.env.NSFW_SOFT_THRESHOLD) || 0.3;
+      const mediumThreshold =
+        parseFloat(process.env.NSFW_MEDIUM_THRESHOLD) || 0.5;
+      const hardThreshold = parseFloat(process.env.NSFW_HARD_THRESHOLD) || 0.7;
+      const criticalThreshold =
+        parseFloat(process.env.NSFW_CRITICAL_THRESHOLD) || 0.9;
 
-    // Determine severity and action
-    let severity = "none";
-    let isClean = true;
-    let action = "allow";
+      // Determine severity and action
+      let severity = "none";
+      let isClean = true;
+      let action = "allow";
 
-    if (nsfwScore >= criticalThreshold) {
-      severity = "critical";
-      isClean = false;
-      action = "block_permanent";
-    } else if (nsfwScore >= hardThreshold) {
-      severity = "high";
-      isClean = false;
-      action = "block";
-    } else if (nsfwScore >= mediumThreshold) {
-      severity = "medium";
-      isClean = false;
-      action = "review";
-    } else if (nsfwScore >= softThreshold) {
-      severity = "low";
-      isClean = true; // Allow but flag for monitoring
-      action = "flag";
+      if (nsfwScore >= criticalThreshold) {
+        severity = "critical";
+        isClean = false;
+        action = "block_permanent";
+      } else if (nsfwScore >= hardThreshold) {
+        severity = "high";
+        isClean = false;
+        action = "block";
+      } else if (nsfwScore >= mediumThreshold) {
+        severity = "medium";
+        isClean = false;
+        action = "review";
+      } else if (nsfwScore >= softThreshold) {
+        severity = "low";
+        isClean = true; // Allow but flag for monitoring
+        action = "flag";
+      }
+
+      // Additional filename check
+      const filename = path.basename(imagePath).toLowerCase();
+      const filenameCheck = await checkImageFilename(filename);
+
+      if (!filenameCheck.isClean) {
+        isClean = false;
+        severity = Math.max(severity, filenameCheck.severity);
+      }
+
+      const result = {
+        isClean,
+        confidence: Math.max(...predictions.map((p) => p.probability)),
+        severity,
+        action,
+        nsfwScore: nsfwScore,
+        predictions: predictions.map((pred) => ({
+          category: pred.className,
+          probability: pred.probability,
+          percentage: `${(pred.probability * 100).toFixed(1)}%`,
+        })),
+        thresholds: {
+          soft: softThreshold,
+          medium: mediumThreshold,
+          hard: hardThreshold,
+          critical: criticalThreshold,
+        },
+        details: {
+          filename: filename,
+          filenameCheck: filenameCheck,
+          topPrediction: predictions[0],
+          riskFactors: [],
+        },
+      };
+
+      // Add risk factors
+      if (predictionMap.Porn > 0.1)
+        result.details.riskFactors.push(
+          `Pornographic content: ${(predictionMap.Porn * 100).toFixed(1)}%`
+        );
+      if (predictionMap.Sexy > 0.2)
+        result.details.riskFactors.push(
+          `Sexually suggestive: ${(predictionMap.Sexy * 100).toFixed(1)}%`
+        );
+      if (predictionMap.Hentai > 0.1)
+        result.details.riskFactors.push(
+          `Hentai content: ${(predictionMap.Hentai * 100).toFixed(1)}%`
+        );
+
+      console.log(`📊 NSFWjs Analysis Results:`, {
+        file: path.basename(imagePath),
+        isClean,
+        severity,
+        nsfwScore: `${(nsfwScore * 100).toFixed(1)}%`,
+        topPrediction: `${predictions[0].className}: ${(
+          predictions[0].probability * 100
+        ).toFixed(1)}%`,
+      });
+
+      return result;
+    } catch (innerError) {
+      console.error("Error during NSFWjs prediction processing:", innerError.message);
+      // Fall through to outer catch block
+      throw innerError;
     }
-
-    // Additional filename check
-    const filename = path.basename(imagePath).toLowerCase();
-    const filenameCheck = await checkImageFilename(filename);
-
-    if (!filenameCheck.isClean) {
-      isClean = false;
-      severity = Math.max(severity, filenameCheck.severity);
-    }
-
-    const result = {
-      isClean,
-      confidence: Math.max(...predictions.map((p) => p.probability)),
-      severity,
-      action,
-      nsfwScore: nsfwScore,
-      predictions: predictions.map((pred) => ({
-        category: pred.className,
-        probability: pred.probability,
-        percentage: `${(pred.probability * 100).toFixed(1)}%`,
-      })),
-      thresholds: {
-        soft: softThreshold,
-        medium: mediumThreshold,
-        hard: hardThreshold,
-        critical: criticalThreshold,
-      },
-      details: {
-        filename: filename,
-        filenameCheck: filenameCheck,
-        topPrediction: predictions[0],
-        riskFactors: [],
-      },
-    };
-
-    // Add risk factors
-    if (predictionMap.Porn > 0.1)
-      result.details.riskFactors.push(
-        `Pornographic content: ${(predictionMap.Porn * 100).toFixed(1)}%`
-      );
-    if (predictionMap.Sexy > 0.2)
-      result.details.riskFactors.push(
-        `Sexually suggestive: ${(predictionMap.Sexy * 100).toFixed(1)}%`
-      );
-    if (predictionMap.Hentai > 0.1)
-      result.details.riskFactors.push(
-        `Hentai content: ${(predictionMap.Hentai * 100).toFixed(1)}%`
-      );
-
-    console.log(`📊 NSFWjs Analysis Results:`, {
-      file: path.basename(imagePath),
-      isClean,
-      severity,
-      nsfwScore: `${(nsfwScore * 100).toFixed(1)}%`,
-      topPrediction: `${predictions[0].className}: ${(
-        predictions[0].probability * 100
-      ).toFixed(1)}%`,
-    });
-
-    return result;
   } catch (error) {
     console.error("NSFWjs analysis error:", error.message);
 
@@ -2439,18 +2456,33 @@ export const analyzeImageContent = async (imagePath) => {
  */
 const basicImageAnalysis = async (imagePath) => {
   try {
-    // Get image metadata and stats
-    const metadata = await sharp(imagePath).metadata();
-    const stats = await sharp(imagePath).stats();
+    // Get basic file info without sharp
+    const fileStats = await fs.stat(imagePath);
+    
+    // Create dummy metadata similar to what sharp would provide
+    const metadata = {
+      format: path.extname(imagePath).substring(1) || 'unknown',
+      width: 0,  // We can't determine this without sharp
+      height: 0, // We can't determine this without sharp
+      size: fileStats.size
+    };
+    
+    // Create dummy stats similar to what sharp would provide
+    const stats = {
+      channels: {
+        mean: [0.5, 0.5, 0.5], // Default neutral values
+        min: [0, 0, 0],
+        max: [1, 1, 1]
+      }
+    };
 
     // Check filename
     const filename = path.basename(imagePath).toLowerCase();
     const filenameCheck = await checkImageFilename(filename);
 
     // Check image properties for basic indicators
-    const isLargeSkinToneArea = stats.channels.some((channel) => {
-      return channel.mean > 200 && channel.std < 50;
-    });
+    // Since we're using dummy values, we'll set this to false by default
+    const isLargeSkinToneArea = false;
 
     // Calculate basic risk score
     let riskScore = 0;

@@ -9,7 +9,6 @@ dotenv.config();
 import axios from "axios";
 import { addViolation } from "./adminDashboard.js";
 import OpenAI from "openai";
-import sharp from "sharp";
 import path from "path";
 
 import { updateTrustScore, checkTrustStatus } from "./trustScoreManager.js";
