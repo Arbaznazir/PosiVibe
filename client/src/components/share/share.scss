@@ -23,6 +23,7 @@
           display: flex;
           align-items: center;
           gap: 20px;
+          min-width: 0; // allow children to shrink within flex
 
           img {
             width: 40px;
@@ -36,7 +37,9 @@
           }
 
           input {
-            width: 100%;
+            flex: 1;
+            min-width: 0; // critical to avoid text clipping in flex containers
+            width: auto;
             padding: 10px;
             background-color: transparent;
             border: none;
@@ -51,9 +54,13 @@
         }
 
         .right {
-          flex: 1;
           display: flex;
           justify-content: flex-end;
+          flex: 0 0 auto; // only take space when there is content
+          
+          &:empty {
+            display: none; // hide completely when no preview file
+          }
 
           .file {
             max-width: 100px;
