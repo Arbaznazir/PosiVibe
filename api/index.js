@@ -43,21 +43,49 @@ console.log("🔄 Initializing MongoDB connection...");
 
 // Configure CORS (single middleware)
 const isProd = process.env.NODE_ENV === 'production';
-const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
+const defaultAllowedOrigins = [
+  "http://localhost:3000",
+  "https://posi-vibe-git-fix-frontend-arbaz-nazirs-projects.vercel.app",
+  "https://posi-vibe.vercel.app"
+];
+
+// Merge default origins with any from environment variables
+const envAllowedOrigins = (process.env.ALLOWED_ORIGINS || '')
   .split(',')
   .map((o) => o.trim())
   .filter(Boolean);
 
+// Combine both lists and remove duplicates
+const allowedOrigins = [...new Set([...defaultAllowedOrigins, ...envAllowedOrigins])];
+
+console.log("🔒 CORS allowed origins:", allowedOrigins);
+
+// Handle preflight requests
+app.options("*", cors());
+
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (Capacitor, curl)
-    if (!origin) return callback(null, true);
+    // Allow requests with no origin (Capacitor, curl, Postman)
+    if (!origin) {
+      console.log("📡 Allowing request with no origin");
+      return callback(null, true);
+    }
+    
     // In development allow all
-    if (!isProd) return callback(null, true);
-    // In production, allow configured origins or allow all if none configured
-    if (allowedOrigins.length === 0) return callback(null, true);
-    if (allowedOrigins.includes(origin)) return callback(null, true);
-    return callback(new Error('Not allowed by CORS'));
+    if (!isProd) {
+      console.log(`📡 Allowing origin in dev mode: ${origin}`);
+      return callback(null, true);
+    }
+    
+    // In production, check against allowed origins
+    if (allowedOrigins.includes(origin)) {
+      console.log(`✅ Allowing allowed origin: ${origin}`);
+      return callback(null, true);
+    }
+    
+    // Log rejected origins
+    console.log(`❌ Rejecting disallowed origin: ${origin}`);
+    return callback(new Error(`Origin ${origin} not allowed by CORS`));
   },
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   credentials: true,
