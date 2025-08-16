@@ -41,7 +41,8 @@ initializeEnvironment();
 // Ensure MongoDB connection is established
 console.log("🔄 Initializing MongoDB connection...");
 
-// Configure CORS (single middleware)
+// ⚠️ IMPORTANT: Configure CORS first, before any other middleware
+// This ensures CORS headers are properly set for all responses
 const isProd = process.env.NODE_ENV === 'production';
 const defaultAllowedOrigins = [
   "http://localhost:3000",
@@ -60,9 +61,10 @@ const allowedOrigins = [...new Set([...defaultAllowedOrigins, ...envAllowedOrigi
 
 console.log("🔒 CORS allowed origins:", allowedOrigins);
 
-// Handle preflight requests
+// 1. Handle preflight OPTIONS requests
 app.options("*", cors());
 
+// 2. Apply CORS middleware to all routes
 app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (Capacitor, curl, Postman)
@@ -92,6 +94,12 @@ app.use(cors({
   allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
   exposedHeaders: ["Content-Range", "X-Content-Range"],
 }));
+
+// 3. Set credentials flag (this was previously after other middleware)
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Credentials", true);
+  next();
+});
 
 // Parse cookies
 app.use(cookieParser());
@@ -324,10 +332,7 @@ io.on("connection", (socket) => {
 });
 
 //middlewares
-app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Credentials", true);
-  next();
-});
+// Credentials header is now set above with CORS
 
 // Configure express to handle file uploads
 app.use(express.json({ limit: "50mb" }));
