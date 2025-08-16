@@ -15,6 +15,7 @@ import {
 } from "@mui/icons-material";
 import "./register.scss";
 import { makeRequest } from "../../axios";
+import OtpVerification from "../../components/otpVerification/OtpVerification";
 
 const Register = () => {
   const [inputs, setInputs] = useState({
@@ -27,6 +28,8 @@ const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [validationErrors, setValidationErrors] = useState({});
+  const [showOtpVerification, setShowOtpVerification] = useState(false);
+  const [registrationSuccess, setRegistrationSuccess] = useState(false);
 
   const handleChange = (e) => {
     setInputs((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -80,12 +83,44 @@ const Register = () => {
     setErr(null);
 
     try {
-      await makeRequest.post("/auth/register", inputs);
-      navigate("/login");
+      // Request email verification instead of direct registration
+      await makeRequest.post("/verification/request-verification", inputs);
+      setShowOtpVerification(true);
     } catch (err) {
-      setErr(err.response?.data?.message || err.response?.data || "Registration failed");
+      setErr(err.response?.data?.message || err.response?.data?.error || "Registration failed");
     } finally {
       setIsLoading(false);
+    }
+  };
+  
+  const handleVerify = async (verificationCode) => {
+    try {
+      // Verify the code and complete registration
+      await makeRequest.post("/verification/verify-and-register", {
+        email: inputs.email,
+        verificationCode
+      });
+      
+      setRegistrationSuccess(true);
+      
+      // Redirect to login page after 2 seconds
+      setTimeout(() => {
+        navigate("/login");
+      }, 2000);
+      
+      return Promise.resolve();
+    } catch (err) {
+      return Promise.reject(err);
+    }
+  };
+  
+  const handleResendOtp = async () => {
+    try {
+      // Resend verification code
+      await makeRequest.post("/verification/request-verification", inputs);
+      return Promise.resolve();
+    } catch (err) {
+      return Promise.reject(err);
     }
   };
 
@@ -95,6 +130,16 @@ const Register = () => {
 
   return (
     <div className="register">
+      {showOtpVerification && (
+        <OtpVerification
+          email={inputs.email}
+          onVerify={handleVerify}
+          onResend={handleResendOtp}
+          onCancel={() => setShowOtpVerification(false)}
+          verificationPurpose="registration"
+        />
+      )}
+      
       <div className="background-shapes">
         <div className="shape shape-1"></div>
         <div className="shape shape-2"></div>

@@ -1,0 +1,300 @@
+@import "../../style.scss";
+
+.otp-verification {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  
+  .otp-container {
+    width: 100%;
+    max-width: 500px;
+    background-color: white;
+    border-radius: 10px;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+    overflow: hidden;
+    animation: slideIn 0.3s ease-out;
+    
+    @include themify($themes) {
+      background-color: themed("bg");
+      color: themed("textColor");
+    }
+    
+    .otp-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px;
+      border-bottom: 1px solid #eee;
+      
+      @include themify($themes) {
+        border-color: themed("border");
+      }
+      
+      h2 {
+        margin: 0;
+        font-size: 1.5rem;
+        color: #4a6ee0;
+      }
+      
+      .close-btn {
+        background: none;
+        border: none;
+        font-size: 24px;
+        cursor: pointer;
+        color: #888;
+        
+        &:hover {
+          color: #333;
+        }
+        
+        @include themify($themes) {
+          color: themed("textColorSoft");
+          
+          &:hover {
+            color: themed("textColor");
+          }
+        }
+      }
+    }
+    
+    .otp-content {
+      padding: 20px;
+      
+      .otp-message {
+        text-align: center;
+        margin-bottom: 20px;
+        font-size: 16px;
+        line-height: 1.5;
+        
+        strong {
+          color: #4a6ee0;
+        }
+      }
+      
+      .otp-form {
+        .otp-inputs {
+          display: flex;
+          justify-content: center;
+          gap: 10px;
+          margin-bottom: 20px;
+          
+          input {
+            width: 50px;
+            height: 60px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            transition: all 0.2s;
+            
+            &:focus {
+              border-color: #4a6ee0;
+              box-shadow: 0 0 0 2px rgba(74, 110, 224, 0.2);
+              outline: none;
+            }
+            
+            &.error {
+              border-color: #ff3b30;
+              animation: shake 0.5s;
+            }
+            
+            @include themify($themes) {
+              background-color: themed("bgSoft");
+              border-color: themed("border");
+              color: themed("textColor");
+              
+              &:focus {
+                border-color: #4a6ee0;
+              }
+            }
+          }
+        }
+        
+        .password-fields {
+          margin-top: 20px;
+          margin-bottom: 20px;
+          
+          .password-field {
+            margin-bottom: 15px;
+            
+            label {
+              display: block;
+              margin-bottom: 5px;
+              font-weight: 500;
+              font-size: 14px;
+              color: #555;
+              
+              @include themify($themes) {
+                color: themed("textColorSoft");
+              }
+            }
+            
+            input {
+              width: 100%;
+              padding: 12px 15px;
+              border: 2px solid #ddd;
+              border-radius: 8px;
+              font-size: 16px;
+              transition: all 0.2s;
+              
+              @include themify($themes) {
+                background-color: themed("bgSoft");
+                border-color: themed("border");
+                color: themed("textColor");
+              }
+              
+              &:focus {
+                border-color: #4a6ee0;
+                box-shadow: 0 0 0 2px rgba(74, 110, 224, 0.2);
+                outline: none;
+              }
+              
+              &::placeholder {
+                color: #aaa;
+              }
+            }
+          }
+        }
+        
+        .error-message {
+          color: #ff3b30;
+          text-align: center;
+          margin-bottom: 15px;
+          font-size: 14px;
+        }
+        
+        .otp-actions {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 15px;
+          
+          .verify-btn {
+            width: 100%;
+            max-width: 200px;
+            padding: 12px;
+            background-color: #4a6ee0;
+            color: white;
+            border: none;
+            border-radius: 30px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+            
+            &:hover {
+              background-color: darken(#4a6ee0, 10%);
+            }
+            
+            &:disabled {
+              background-color: #a0a0a0;
+              cursor: not-allowed;
+            }
+            
+            svg {
+              font-size: 20px;
+            }
+          }
+          
+          .resend-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            
+            .resend-btn {
+              background: none;
+              border: none;
+              color: #4a6ee0;
+              font-size: 14px;
+              font-weight: 600;
+              cursor: pointer;
+              padding: 0;
+              
+              &.disabled {
+                color: #a0a0a0;
+                cursor: not-allowed;
+              }
+              
+              @include themify($themes) {
+                color: themed("link");
+                
+                &.disabled {
+                  color: themed("textColorSoft");
+                }
+              }
+            }
+            
+            .resend-timer {
+              font-size: 14px;
+              color: #888;
+              
+              @include themify($themes) {
+                color: themed("textColorSoft");
+              }
+            }
+          }
+        }
+      }
+      
+      .otp-footer {
+        margin-top: 20px;
+        text-align: center;
+        font-size: 14px;
+        color: #666;
+        
+        @include themify($themes) {
+          color: themed("textColorSoft");
+        }
+        
+        .text-btn {
+          background: none;
+          border: none;
+          color: #4a6ee0;
+          font-size: 14px;
+          font-weight: 600;
+          cursor: pointer;
+          padding: 0;
+          
+          @include themify($themes) {
+            color: themed("link");
+          }
+        }
+      }
+    }
+  }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  10%, 30%, 50%, 70%, 90% {
+    transform: translateX(-5px);
+  }
+  20%, 40%, 60%, 80% {
+    transform: translateX(5px);
+  }
+}

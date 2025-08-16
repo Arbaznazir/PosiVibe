@@ -13,6 +13,7 @@ import relationshipRoutes from "./routes/relationships.js";
 import adminRoutes from "./routes/admin.js";
 import notificationRoutes from "./routes/notifications.js";
 import messageRoutes from "./routes/messages.js";
+import verificationRoutes from "./routes/verification.js";
 import cors from "cors";
 import multer from "multer";
 import cookieParser from "cookie-parser";
@@ -31,6 +32,11 @@ import { uploadToCloudinary } from "./utils/uploadToCloudinary.js";
 import connectDB, { mongoose } from "./connect.js";
 import { canMessage } from "./controllers/message.js";
 import Message from "./models/Message.js";
+import { initializeEnvironment } from "./utils/fixEnv.js";
+
+// Initialize environment and configuration
+console.log("🔄 Initializing environment and configuration...");
+initializeEnvironment();
 
 // Ensure MongoDB connection is established
 console.log("🔄 Initializing MongoDB connection...");
@@ -466,6 +472,7 @@ app.use("/api/relationships", relationshipRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/messages", messageRoutes);
+app.use("/api/verification", verificationRoutes);
 
 // Handle 404
 app.use((req, res) => {
