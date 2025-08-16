@@ -41,18 +41,28 @@ initializeEnvironment();
 // Ensure MongoDB connection is established
 console.log("🔄 Initializing MongoDB connection...");
 
-// Configure CORS middleware
+// Configure CORS (single middleware)
+const isProd = process.env.NODE_ENV === 'production';
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+
 app.use(cors({
-  origin: function(origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
+  origin: (origin, callback) => {
+    // Allow requests with no origin (Capacitor, curl)
     if (!origin) return callback(null, true);
-    
-    // Allow all origins for development
-    return callback(null, true);
+    // In development allow all
+    if (!isProd) return callback(null, true);
+    // In production, allow configured origins or allow all if none configured
+    if (allowedOrigins.length === 0) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error('Not allowed by CORS'));
   },
-  methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   credentials: true,
-  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"]
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+  exposedHeaders: ["Content-Range", "X-Content-Range"],
 }));
 
 // Parse cookies
@@ -295,18 +305,7 @@ app.use((req, res, next) => {
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
-// Configure CORS
-app.use(
-  cors({
-    origin: ["http://localhost:3000", "http://localhost:3001"],
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
-    exposedHeaders: ["Content-Range", "X-Content-Range"],
-  })
-);
-
-app.use(cookieParser());
+// CORS is configured above
 
 // Configure multer for file uploads
 const storage = multer.memoryStorage();
@@ -325,7 +324,12 @@ const upload = multer({
 
 // Configure file upload route with authentication
 app.post("/api/upload", upload.single('file'), async (req, res) => {
-  const token = req.cookies.accessToken;
+  // Support auth via cookie or Authorization header (Bearer token)
+  let token = req.cookies.accessToken;
+  const authHeader = req.headers["authorization"] || req.headers["Authorization"]; 
+  if (!token && authHeader && typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
+    token = authHeader.split(' ')[1];
+  }
   if (!token) return res.status(401).json("Not authenticated!");
 
   jwt.verify(

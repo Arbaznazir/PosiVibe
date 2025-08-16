@@ -2,17 +2,22 @@ import axios from "axios";
 
 // Function to get the API base URL
 function getApiBaseUrl() {
-  // Try to use the network IP first
+  // 1) Prefer explicit env var (for production or custom dev)
+  const fromEnv = process.env.REACT_APP_API_BASE_URL;
+  if (fromEnv && typeof fromEnv === "string") {
+    return fromEnv.endsWith("/") ? fromEnv : `${fromEnv}/`;
+  }
+
+  // 2) Device/LAN development: use current host with port 8800
   try {
-    // If we're on a phone/different device, use the network IP
-    if (window.location.hostname !== 'localhost') {
+    if (window.location.hostname && window.location.hostname !== "localhost") {
       return `http://${window.location.hostname}:8800/api/`;
     }
   } catch (error) {
     console.error("Error determining API URL:", error);
   }
-  
-  // Fallback to localhost
+
+  // 3) Local development fallback
   return "http://localhost:8800/api/";
 }
 
