@@ -2,13 +2,15 @@ service:
   name: posivibe-api
   type: web
   source:
-    directory: api
+    directory: .
   buildpacks:
     - name: nodejs
   build:
     command: npm install
   run:
-    command: npm run start:prod
-    workdir: /api
+    command: node api/index.js
   ports:
     - port: 8800
+  env:
+    - name: NODE_ENV
+      value: production

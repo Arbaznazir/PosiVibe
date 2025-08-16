@@ -5,10 +5,23 @@
   "engines": {
     "node": ">=18.0.0"
   },
+  "type": "module",
   "scripts": {
-    "start": "cd api && npm run start:prod",
+    "start": "cd api && node index.js",
     "start:prod": "cd api && node index.js",
-    "build": "cd api && npm ci"
+    "build": "npm install && cd api && npm install",
+    "postinstall": "cd api && npm install"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "socket.io": "^4.8.1",
+    "mongoose": "^8.16.0",
+    "jsonwebtoken": "^8.5.1",
+    "cookie-parser": "^1.4.6",
+    "multer": "^1.4.5-lts.1",
+    "cloudinary": "^2.7.0",
+    "dotenv": "^16.5.0"
   },
   "workspaces": [
     "api",
