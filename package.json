@@ -7,6 +7,7 @@
   },
   "scripts": {
     "start": "cd api && npm run start:prod",
+    "start:prod": "cd api && node index.js",
     "build": "cd api && npm install"
   },
   "workspaces": [
