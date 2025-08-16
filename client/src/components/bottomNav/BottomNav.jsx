@@ -4,7 +4,7 @@ import EmailOutlinedIcon from "@mui/icons-material/EmailOutlined";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import PeopleIcon from "@mui/icons-material/People";
 import { Link, useLocation } from "react-router-dom";
-import { useContext } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AuthContext } from "../../context/authContext";
 import { makeRequest } from "../../axios";
@@ -36,6 +36,45 @@ const BottomNav = () => {
   const { currentUser } = useContext(AuthContext);
   const location = useLocation();
   const userId = currentUser?._id || currentUser?.id;
+  // Hide-on-scroll (mobile)
+  const [isHidden, setIsHidden] = useState(false);
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== 'undefined' ? window.matchMedia('(max-width: 768px)').matches : false
+  );
+  const lastScrollYRef = useRef(0);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mql = window.matchMedia('(max-width: 768px)');
+    const handleChange = (e) => setIsMobile(e.matches);
+    mql.addEventListener('change', handleChange);
+    setIsMobile(mql.matches);
+    return () => mql.removeEventListener('change', handleChange);
+  }, []);
+
+  useEffect(() => {
+    if (!isMobile) {
+      setIsHidden(false);
+      return;
+    }
+    const onScroll = () => {
+      const y = window.scrollY || window.pageYOffset || 0;
+      const last = lastScrollYRef.current;
+      const delta = y - last;
+      const threshold = 5;
+      if (Math.abs(delta) <= threshold) return;
+      if (y <= 0) {
+        setIsHidden(false);
+      } else if (delta > 0) {
+        setIsHidden(true);
+      } else {
+        setIsHidden(false);
+      }
+      lastScrollYRef.current = y;
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [isMobile]);
 
   const { data: timeLimit } = useQuery({
     queryKey: ["timeLimit"],
@@ -56,7 +95,7 @@ const BottomNav = () => {
     location.pathname === path || location.pathname.startsWith(path + "/");
 
   return (
-    <nav className="bottom-nav">
+    <nav className={`bottom-nav ${isHidden ? 'hide-on-scroll' : ''}`}>
       <Link
         to="/app"
         className={`nav-item ${location.pathname === "/app" ? "active" : ""}`}

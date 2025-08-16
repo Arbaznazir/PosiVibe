@@ -43,6 +43,10 @@
     color: themed("textColor");
     z-index: 999;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transform: translateY(0);
+    opacity: 1;
+    transition: transform var(--transition-normal), opacity var(--transition-fast);
+    will-change: transform, opacity;
 
     @include mobile {
       padding: 0 10px;
@@ -263,6 +267,15 @@
         @include dev-tools-open {
           width: 200px;
           padding: 6px 12px;
+        }
+      }
+
+      // Hidden state on mobile when scrolling down
+      @include mobile {
+        &.hide-on-scroll {
+          transform: translateY(-100%);
+          opacity: 0;
+          pointer-events: none;
         }
       }
     }

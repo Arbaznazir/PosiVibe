@@ -12,12 +12,25 @@
     display: none; // hidden by default (desktop)
     z-index: 1100;
     padding: 0 10px env(safe-area-inset-bottom);
+    transform: translateY(0);
+    opacity: 1;
+    transition: transform var(--transition-normal), opacity var(--transition-fast);
+    will-change: transform, opacity;
 
     @include mobile {
       display: grid; // show on mobile
       grid-template-columns: 1fr 1fr auto 1fr 1fr;
       align-items: center;
       gap: 10px;
+    }
+
+    // Hidden state on mobile when scrolling down
+    @include mobile {
+      &.hide-on-scroll {
+        transform: translateY(100%);
+        opacity: 0;
+        pointer-events: none;
+      }
     }
 
     .nav-item {

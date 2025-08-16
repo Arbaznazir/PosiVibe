@@ -30,6 +30,47 @@ const Navbar = () => {
   const [showSearchResults, setShowSearchResults] = useState(false);
   const searchTimeoutRef = useRef(null);
   const navigate = useNavigate();
+  // Hide-on-scroll (mobile)
+  const [isNavHidden, setIsNavHidden] = useState(false);
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== 'undefined' ? window.matchMedia('(max-width: 768px)').matches : false
+  );
+  const lastScrollYRef = useRef(0);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mql = window.matchMedia('(max-width: 768px)');
+    const handleChange = (e) => setIsMobile(e.matches);
+    mql.addEventListener('change', handleChange);
+    setIsMobile(mql.matches);
+    return () => mql.removeEventListener('change', handleChange);
+  }, []);
+
+  useEffect(() => {
+    if (!isMobile) {
+      setIsNavHidden(false);
+      return;
+    }
+    const onScroll = () => {
+      const y = window.scrollY || window.pageYOffset || 0;
+      const last = lastScrollYRef.current;
+      const delta = y - last;
+      const threshold = 5;
+      if (Math.abs(delta) <= threshold) return;
+      if (y <= 0) {
+        setIsNavHidden(false);
+      } else if (delta > 0) {
+        // scrolling down
+        setIsNavHidden(true);
+      } else {
+        // scrolling up
+        setIsNavHidden(false);
+      }
+      lastScrollYRef.current = y;
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [isMobile]);
 
   // Fetch time limit data
   const { data: timeLimit, refetch: refetchTimeLimit } = useQuery({
@@ -182,7 +223,7 @@ const Navbar = () => {
   };
 
   return (
-    <div className="navbar">
+    <div className={`navbar ${isNavHidden ? 'hide-on-scroll' : ''}`}>
       <div className="left">
         <Link to="/app" className="logo">
           <img src="/logo.png" alt="PosiVibe" className="logo-image" />
