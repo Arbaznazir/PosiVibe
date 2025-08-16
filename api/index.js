@@ -465,9 +465,26 @@ app.use(
   timeLimitMiddleware
 );
 
-// Health check endpoint for Koyeb
+// Health check endpoints for Koyeb - moved to top priority
 app.get("/", (req, res) => {
-  res.status(200).json({ status: "ok", message: "PosiVibe API is running" });
+  console.log("ROOT health check hit");
+  res.status(200).send("OK"); // Simple text response
+});
+
+app.get("/health", (req, res) => {
+  console.log("HEALTH endpoint hit");
+  res.status(200).send("OK"); // Simple text response
+});
+
+app.get("/healthz", (req, res) => {
+  console.log("HEALTHZ endpoint hit");
+  res.status(200).send("OK"); // Simple text response
+});
+
+// Also add a plain text endpoint
+app.get("/ping", (req, res) => {
+  console.log("PING endpoint hit");
+  res.status(200).send("pong");
 });
 
 // Routes
