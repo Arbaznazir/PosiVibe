@@ -54,5 +54,8 @@
   "author": "Arbaz Nazir, Jamsheed Mushtaq, Danish Manzoor",
   "license": "MIT",
   "description": "PosiVibe API - Backend for positive social networking platform with digital wellness features",
-  "type": "module"
+  "type": "module",
+  "engines": {
+    "node": ">=18.0.0"
+  }
 }
