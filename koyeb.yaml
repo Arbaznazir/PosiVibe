@@ -13,4 +13,4 @@ service:
     - name: NODE_ENV
       value: production
   docker:
-    command: bash -c "cd api && npm install && node index.js"
+    dockerfile: Dockerfile

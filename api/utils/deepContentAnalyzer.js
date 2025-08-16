@@ -1,19 +1,19 @@
-const sharp = require("sharp");
-const path = require("path");
-const fs = require("fs").promises;
-const crypto = require("crypto");
-const {
+import sharp from "sharp";
+import path from "path";
+import { promises as fs } from "fs";
+import crypto from "crypto";
+import {
   Worker,
   isMainThread,
   parentPort,
   workerData,
-} = require("worker_threads");
+} from "worker_threads";
 
 // Import existing filters
-const {
+import {
   analyzeContent,
   isLegitimateNameOrUsername,
-} = require("./contentFilter");
+} from "./contentFilter.js";
 
 class DeepContentAnalyzer {
   constructor() {
