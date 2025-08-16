@@ -5,6 +5,8 @@ service:
     directory: api
   buildpacks:
     - name: nodejs
+  build:
+    command: npm install
   run:
     command: npm run start:prod
     workdir: /api
