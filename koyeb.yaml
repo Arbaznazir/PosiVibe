@@ -3,14 +3,14 @@ service:
   type: web
   source:
     directory: .
-  buildpacks:
-    - name: nodejs
-  build:
-    command: npm install
-  run:
-    command: node api/index.js
+  routes:
+    - path: /
+      port: 8800
   ports:
     - port: 8800
+      protocol: http
   env:
     - name: NODE_ENV
       value: production
+  docker:
+    command: bash -c "npm install && cd api && npm install && node index.js"
