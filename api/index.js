@@ -507,6 +507,11 @@ app.use((req, res) => {
 
 // Start server
 const PORT = process.env.PORT || 8800;
+
+// Log the port being used
+console.log(`🔌 Attempting to bind to PORT=${PORT} (from env: ${process.env.PORT || 'not set'})`); 
+
+// Listen on all interfaces (0.0.0.0) to ensure Koyeb can reach the server
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📱 Local: http://localhost:${PORT}`);
