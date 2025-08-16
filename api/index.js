@@ -41,8 +41,32 @@ initializeEnvironment();
 // Ensure MongoDB connection is established
 console.log("🔄 Initializing MongoDB connection...");
 
-// ⚠️ IMPORTANT: Configure CORS first, before any other middleware
-// This ensures CORS headers are properly set for all responses
+// ⚠️ TEMPORARY DEBUGGING: Using fully permissive CORS
+// This allows all origins for testing purposes only
+// IMPORTANT: Replace with proper CORS settings after debugging
+
+// 1. Handle all preflight OPTIONS requests
+app.options("*", cors());
+
+// 2. Apply fully permissive CORS middleware to all routes
+app.use(cors({
+  origin: true, // Allow all origins
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+  exposedHeaders: ["Content-Range", "X-Content-Range"],
+}));
+
+console.log("⚠️ USING FULLY PERMISSIVE CORS FOR DEBUGGING");
+
+// 3. Ensure credentials header is set
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Credentials", true);
+  next();
+});
+
+/* ORIGINAL SECURE CORS CONFIGURATION (UNCOMMENT AFTER DEBUGGING)
+
 const isProd = process.env.NODE_ENV === 'production';
 const defaultAllowedOrigins = [
   "http://localhost:3000",
@@ -61,10 +85,8 @@ const allowedOrigins = [...new Set([...defaultAllowedOrigins, ...envAllowedOrigi
 
 console.log("🔒 CORS allowed origins:", allowedOrigins);
 
-// 1. Handle preflight OPTIONS requests
 app.options("*", cors());
 
-// 2. Apply CORS middleware to all routes
 app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (Capacitor, curl, Postman)
@@ -94,12 +116,7 @@ app.use(cors({
   allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
   exposedHeaders: ["Content-Range", "X-Content-Range"],
 }));
-
-// 3. Set credentials flag (this was previously after other middleware)
-app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Credentials", true);
-  next();
-});
+*/
 
 // Parse cookies
 app.use(cookieParser());
