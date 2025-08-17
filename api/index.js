@@ -46,12 +46,23 @@ console.log("🔄 Initializing MongoDB connection...");
 // IMPORTANT: Replace with proper CORS settings after debugging
 
 // 1) Manual CORS guard — must be FIRST in the chain
+// Define allowed origins
+const allowedOrigins = [
+  "http://localhost:3000",
+  "https://posi-vibe.vercel.app",
+  "https://posi-vibe-git-fix-frontend-arbaz-nazirs-projects.vercel.app"
+];
+
+// CORS middleware - must be first in the stack
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  if (origin) {
+  
+  // Check if origin is allowed or development mode
+  if (origin && (allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production')) {
     res.header("Access-Control-Allow-Origin", origin);
     res.header("Vary", "Origin");
   }
+  
   res.header("Access-Control-Allow-Credentials", "true");
   res.header("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,PATCH,OPTIONS");
 
@@ -562,6 +573,15 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/verification", verificationRoutes);
+
+// Debug route to verify backend is alive
+app.get("/api/debug", (req, res) => {
+  res.json({ 
+    message: "Backend is alive 🚀",
+    time: new Date().toISOString(),
+    env: process.env.NODE_ENV
+  });
+});
 
 // Handle 404
 app.use((req, res) => {
