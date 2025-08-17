@@ -1,0 +1,287 @@
+.messages-sidebar {
+  width: 280px;
+  background: var(--bg);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+
+  .sidebar-header {
+    padding: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border);
+
+    h2 {
+      font-size: 24px;
+      font-weight: 600;
+      color: var(--primary);
+      margin: 0;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 8px;
+
+      .icon-btn {
+        background: transparent;
+        border: none;
+        color: var(--textSoft);
+        cursor: pointer;
+        font-size: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 4px;
+        border-radius: 50%;
+        transition: all 0.2s;
+
+        &:hover {
+          background: var(--bgSoft);
+          color: var(--primary);
+        }
+      }
+    }
+  }
+
+  .search-container {
+    padding: 12px 16px;
+    position: relative;
+    
+    .search-icon {
+      position: absolute;
+      left: 24px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--textSoft);
+      font-size: 18px;
+    }
+    
+    .search-input {
+      width: 100%;
+      border: none;
+      outline: none;
+      background: var(--bgSoft);
+      color: var(--textColor);
+      font-size: 14px;
+      padding: 10px 16px 10px 40px;
+      border-radius: 20px;
+      
+      &::placeholder {
+        color: var(--textSoft);
+      }
+    }
+  }
+
+  .online-users {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    
+    .online-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      
+      h3 {
+        font-size: 14px;
+        color: var(--textSoft);
+        font-weight: 500;
+        margin: 0;
+      }
+      
+      .see-all {
+        font-size: 12px;
+        color: var(--textSoft);
+        text-decoration: none;
+        
+        &:hover {
+          color: var(--primary);
+        }
+      }
+    }
+    
+    .avatar-row {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 8px;
+      
+      &::-webkit-scrollbar {
+        height: 0;
+        width: 0;
+      }
+      
+      .user-avatar {
+        position: relative;
+        
+        img {
+          width: 48px;
+          height: 48px;
+          border-radius: 50%;
+          object-fit: cover;
+          border: 2px solid var(--bg);
+        }
+        
+        .online-indicator {
+          position: absolute;
+          bottom: 2px;
+          right: 2px;
+          width: 12px;
+          height: 12px;
+          border-radius: 50%;
+          background: #4caf50;
+          border: 2px solid var(--bg);
+        }
+      }
+    }
+  }
+
+  .pinned-messages {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    
+    h3 {
+      font-size: 14px;
+      color: var(--textSoft);
+      font-weight: 500;
+      margin: 0 0 12px 0;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+  }
+
+  .conversations-section {
+    margin-bottom: 16px;
+    
+    .section-header {
+      padding: 0 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      
+      h3 {
+        font-size: 14px;
+        color: var(--textSoft);
+        font-weight: 500;
+        margin: 0;
+      }
+    }
+  }
+
+  .conversation-item {
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    transition: background 0.2s;
+    border-bottom: 1px solid transparent;
+    position: relative;
+    
+    .conversation-avatar {
+      position: relative;
+      margin-right: 12px;
+      
+      .unread-indicator {
+        position: absolute;
+        top: -4px;
+        right: -4px;
+        background: var(--primary);
+        color: white;
+        font-size: 11px;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+    }
+    
+    .conversation-info {
+      flex: 1;
+      overflow: hidden;
+      
+      .conversation-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 4px;
+        
+        .user-name {
+          font-size: 15px;
+          font-weight: 600;
+          margin: 0;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          color: var(--textColor);
+        }
+        
+        .message-time {
+          font-size: 11px;
+          color: var(--textColor);
+          font-weight: 500;
+          flex-shrink: 0;
+          margin-left: 8px;
+        }
+      }
+      
+      .last-message {
+        font-size: 13px;
+        color: var(--textColor);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        
+        .you-prefix {
+          color: var(--textColor);
+        }
+        
+        .typing-text {
+          color: var(--primary);
+          font-style: italic;
+        }
+        
+        .no-messages {
+          color: var(--textSoft);
+          font-style: italic;
+        }
+        
+        .message-preview {
+          color: var(--textColor);
+        }
+      }
+    }
+    
+    &:hover {
+      background: var(--bgSoft);
+    }
+    
+    &.active {
+      background: var(--primary);
+      border-radius: 16px;
+      margin: 0 8px;
+      box-shadow: 0 2px 8px rgba(0, 132, 255, 0.25);
+      
+      .user-name, .last-message, .message-time, .you-prefix, .message-preview, .no-messages {
+        color: white !important;
+      }
+      
+      .message-status {
+        color: rgba(255, 255, 255, 0.8) !important;
+      }
+    }
+    
+    .message-status {
+      position: absolute;
+      right: 16px;
+      bottom: 12px;
+      font-size: 16px;
+      color: var(--textSoft);
+    }
+  }
+}
