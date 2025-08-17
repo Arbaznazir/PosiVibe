@@ -4,7 +4,10 @@ import EmojiPicker from 'emoji-picker-react';
 import { makeRequest } from '../../axios';
 import { AuthContext } from '../../context/authContext';
 import socketService from '../../services/socket';
+import './_messagesSidebar.scss';
+import './_chatArea.scss';
 import './messages.scss';
+import './fix-text.css';
 import {
   Close as CloseIcon,
   Send as SendIcon,
@@ -20,6 +23,14 @@ import {
   DoneAll,
   PersonAdd,
   Refresh,
+  PushPin,
+  MoreVert,
+  Add,
+  // ThumbUp removed,
+  Poll,
+  Image,
+  Mic,
+  MoreHoriz,
 } from '@mui/icons-material';
 import Avatar from '../avatar/Avatar';
 import toast from 'react-hot-toast';
@@ -36,9 +47,15 @@ const Messages = ({ isOpen, onClose }) => {
   const [typingUser, setTypingUser] = useState(null);
   const [showSidebar, setShowSidebar] = useState(true);
   const [onlineUsers, setOnlineUsers] = useState(new Set());
+  const [pinnedMessages, setPinnedMessages] = useState([]);
+  // Reactions feature removed
+  const [showPollCreator, setShowPollCreator] = useState(false);
+  const [pollQuestion, setPollQuestion] = useState('');
+  const [pollOptions, setPollOptions] = useState(['', '']);
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const queryClient = useQueryClient();
+  const sidebarRef = useRef(null);
 
   // Fetch conversations
   const { data: conversations = [], isLoading: conversationsLoading, refetch: refetchConversations, error: conversationsError } = useQuery({
@@ -327,37 +344,87 @@ const Messages = ({ isOpen, onClose }) => {
     <div className="messages-modal" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="messages-container">
         {/* Sidebar */}
-        <div className={`messages-sidebar ${!showSidebar ? 'hidden-mobile' : ''}`}>
+        <div className={`messages-sidebar ${showSidebar ? 'show' : ''}`} ref={sidebarRef}>
           <div className="sidebar-header">
-            <div className="header-content">
-              <h2>Messages</h2>
-              <div className="header-actions">
-                <button 
-                  className="icon-btn refresh-btn" 
-                  onClick={() => {
-                    refetchConversations();
-                    toast.success('Refreshed conversations');
-                  }}
-                  title="Refresh"
-                >
-                  <Refresh />
-                </button>
-                <button className="icon-btn close-btn" onClick={onClose} title="Close">
-                  <CloseIcon />
-                </button>
+            <h2>Messages</h2>
+            <div className="header-actions">
+              <button 
+                className="icon-btn" 
+                onClick={() => {
+                  refetchConversations();
+                  toast.success('Refreshed conversations');
+                }}
+                title="Refresh"
+              >
+                <Refresh />
+              </button>
+              <button className="icon-btn" onClick={onClose} title="Close">
+                <CloseIcon />
+              </button>
+            </div>
+          </div>
+          
+          <div className="search-container">
+            <SearchIcon className="search-icon" />
+            <input
+              type="text"
+              placeholder="Search conversations..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="search-input"
+            />
+          </div>
+          
+          {/* Online Users Row */}
+          <div className="online-users">
+            <div className="avatar-row">
+              {Array.from(onlineUsers)
+                .filter(userId => userId !== currentUser.id)
+                .slice(0, 10)
+                .map(userId => {
+                  const user = [...conversations.map(c => c.user), ...suggestedUsers]
+                    .find(u => u._id === userId);
+                  
+                  if (!user) return null;
+                  
+                  return (
+                    <div 
+                      key={userId} 
+                      className="user-avatar"
+                      onClick={() => handleSelectUser(userId)}
+                      title={user.name}
+                    >
+                      <Avatar
+                        user={user}
+                        size="medium"
+                      />
+                      <div className="online-indicator"></div>
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
+          
+          {/* Pinned Messages Section */}
+          <div className="pinned-messages">
+            <h3>
+              <PushPin style={{ fontSize: 16 }} />
+              Pinned Messages
+            </h3>
+            {pinnedMessages.length > 0 ? (
+              pinnedMessages.map(message => (
+                <div key={message._id} className="pinned-message-item">
+                  <div className="pinned-message-content">
+                    <p>{message.content.substring(0, 50)}{message.content.length > 50 ? '...' : ''}</p>
+                    <span className="pinned-from">{message.senderId.name}</span>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="no-pinned-messages">
+                <p>No pinned messages yet</p>
               </div>
-            </div>
-            
-            <div className="search-container">
-              <SearchIcon className="search-icon" />
-              <input
-                type="text"
-                placeholder="Search conversations..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="search-input"
-              />
-            </div>
+            )}
           </div>
           
           <div className="conversations-list">
@@ -381,53 +448,71 @@ const Messages = ({ isOpen, onClose }) => {
                     <div className="section-header">
                       <h3>Recent Conversations</h3>
                     </div>
-                    {filteredConversations.map((conversation) => (
-                      <div
-                        key={conversation.user._id}
-                        className={`conversation-item ${
-                          selectedUserId === conversation.user._id ? 'active' : ''
-                        }`}
-                        onClick={() => handleSelectUser(conversation.user._id)}
-                      >
-                        <div className="conversation-avatar">
-                          <Avatar
-                            user={conversation.user}
-                            size="medium"
-                            showOnline={isUserOnline(conversation.user._id)}
-                          />
-                          {conversation.count > 0 && (
-                            <div className="unread-indicator">{conversation.count}</div>
-                          )}
-                        </div>
-                        
-                        <div className="conversation-info">
-                          <div className="conversation-header">
-                            <h4 className="user-name">{conversation.user.name}</h4>
-                            {conversation.lastMessage && (
-                              <span className="message-time">
-                                {formatDistanceToNow(new Date(conversation.lastMessage.createdAt), {
-                                  addSuffix: false,
-                                })}
-                              </span>
+                    {filteredConversations.map((conversation) => {
+                      const isOnline = isUserOnline(conversation.user._id);
+                      const isTypingInConversation = typingUser === conversation.user._id;
+                      
+                      return (
+                        <div
+                          key={conversation.user._id}
+                          className={`conversation-item ${
+                            selectedUserId === conversation.user._id ? 'active' : ''
+                          }`}
+                          onClick={() => handleSelectUser(conversation.user._id)}
+                        >
+                          <div className="conversation-avatar">
+                            <Avatar
+                              user={conversation.user}
+                              size="medium"
+                            />
+                            {conversation.count > 0 && (
+                              <div className="unread-indicator">{conversation.count}</div>
                             )}
                           </div>
                           
-                          {conversation.lastMessage && (
-                            <div className="last-message">
-                              {conversation.lastMessage.senderId._id === currentUser.id && (
-                                <span className="you-prefix">You: </span>
+                          <div className="conversation-info">
+                            <div className="conversation-header">
+                              <h4 className="user-name">{conversation.user.name}</h4>
+                              {conversation.lastMessage && (
+                                <span className="message-time">
+                                  {formatMessageTime(conversation.lastMessage.createdAt)}
+                                </span>
                               )}
-                              <span className="message-preview">
-                                {conversation.lastMessage.content.length > 35
-                                  ? `${conversation.lastMessage.content.substring(0, 35)}...`
-                                  : conversation.lastMessage.content
-                                }
-                              </span>
+                            </div>
+                            
+                            <div className="last-message">
+                              {isTypingInConversation ? (
+                                <span className="typing-text">typing...</span>
+                              ) : conversation.lastMessage ? (
+                                <>
+                                  {conversation.lastMessage.senderId._id === currentUser.id && (
+                                    <span className="you-prefix">You: </span>
+                                  )}
+                                  <span className="message-preview">
+                                    {conversation.lastMessage.content.length > 35
+                                      ? `${conversation.lastMessage.content.substring(0, 35)}...`
+                                      : conversation.lastMessage.content
+                                    }
+                                  </span>
+                                </>
+                              ) : (
+                                <span className="no-messages">No messages yet</span>
+                              )}
+                            </div>
+                          </div>
+                          
+                          {conversation.lastMessage && conversation.lastMessage.senderId._id === currentUser.id && (
+                            <div className="message-status">
+                              {conversation.lastMessage.read ? (
+                                <DoneAll style={{ fontSize: 16, color: '#4caf50' }} />
+                              ) : (
+                                <Check style={{ fontSize: 16 }} />
+                              )}
                             </div>
                           )}
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
 
@@ -508,7 +593,7 @@ const Messages = ({ isOpen, onClose }) => {
         </div>
 
         {/* Main Chat Area */}
-        <div className={`messages-main ${showSidebar ? 'hidden-mobile' : ''}`}>
+        <div className="chat-area">
           {selectedUserId && selectedUser ? (
             <>
               {/* Chat Header */}
@@ -524,7 +609,6 @@ const Messages = ({ isOpen, onClose }) => {
                   <Avatar
                     user={selectedUser}
                     size="medium"
-                    showOnline={isUserOnline(selectedUserId)}
                   />
                   
                   <div className="user-info">
@@ -549,6 +633,13 @@ const Messages = ({ isOpen, onClose }) => {
                 </div>
                 
                 <div className="header-actions">
+                  <button 
+                    className="icon-btn" 
+                    title="Create poll"
+                    onClick={() => setShowPollCreator(!showPollCreator)}
+                  >
+                    <Poll />
+                  </button>
                   <button className="icon-btn" title="Voice call">
                     <PhoneIcon />
                   </button>
@@ -556,7 +647,7 @@ const Messages = ({ isOpen, onClose }) => {
                     <VideoCallIcon />
                   </button>
                   <button className="icon-btn" title="Info">
-                    <InfoIcon />
+                    <MoreVert />
                   </button>
                 </div>
               </div>
@@ -576,11 +667,42 @@ const Messages = ({ isOpen, onClose }) => {
                   </div>
                 ) : (
                   <>
+                    {/* Date divider example */}
+                    <div className="date-divider">
+                      <span>Today</span>
+                    </div>
+                    
+                    {/* Poll message example */}
+                    <div className="poll-message">
+                      <div className="poll-question">What should we do this weekend?</div>
+                      <div className="poll-options">
+                        <div className="poll-option">
+                          <div className="option-fill" style={{ width: '70%' }}></div>
+                          <span className="option-text">Go to the beach</span>
+                          <span className="option-percent">70%</span>
+                        </div>
+                        <div className="poll-option">
+                          <div className="option-fill" style={{ width: '20%' }}></div>
+                          <span className="option-text">Watch a movie</span>
+                          <span className="option-percent">20%</span>
+                        </div>
+                        <div className="poll-option">
+                          <div className="option-fill" style={{ width: '10%' }}></div>
+                          <span className="option-text">Stay home</span>
+                          <span className="option-percent">10%</span>
+                        </div>
+                      </div>
+                    </div>
+                    
                     {messages.map((message, index) => {
                       if (!message || !message.senderId) {
                         return (
-                          <div key={index} className="message error">
-                            <p>⚠️ Unable to load message</p>
+                          <div key={index} className="message system">
+                            <div className="message-content">
+                              <div className="message-bubble">
+                                <p>⚠️ Unable to load message</p>
+                              </div>
+                            </div>
                           </div>
                         );
                       }
@@ -592,75 +714,91 @@ const Messages = ({ isOpen, onClose }) => {
                         messages[index - 1]?.senderId?._id !== message.senderId._id
                       );
                       
+                      // Check if this is a new day compared to previous message
+                      const showDateDivider = index > 0 && new Date(message.createdAt).toDateString() !== 
+                        new Date(messages[index - 1].createdAt).toDateString();
+                      
                       return (
-                        <div
-                          key={message._id}
-                          className={`message ${isSystemMessage ? 'system' : isOwn ? 'own' : 'other'}`}
-                        >
-                          {showAvatar && (
-                            <Avatar
-                              src={message.senderId.profilePic}
-                              name={message.senderId.name}
-                              size="small"
-                              className="message-avatar"
-                            />
+                        <React.Fragment key={message._id}>
+                          {showDateDivider && (
+                            <div className="date-divider">
+                              <span>{new Date(message.createdAt).toLocaleDateString()}</span>
+                            </div>
                           )}
                           
-                          <div className="message-content">
-                            <div className="message-bubble">
-                              {/* Only show text content if it's not an image-only message */}
-                              {(typeof message.content === 'string' && message.content) && <p>{message.content}</p>}
-                              
-                              {/* Handle image attachments */}
-                              {(() => {
-                                // Extract the image URL from various possible locations
-                                const imageUrl = message.fileUrl || 
-                                                message.file || 
-                                                (typeof message.content === 'object' && message.content.fileUrl) ||
-                                                (typeof message.content === 'object' && message.content.file);
+                          <div className={`message ${isSystemMessage ? 'system' : isOwn ? 'own' : 'other'}`}>
+                            {showAvatar && !isOwn && !isSystemMessage && (
+                              <div className="message-avatar">
+                                <Avatar
+                                  user={message.senderId}
+                                  size="small"
+                                />
+                              </div>
+                            )}
+                            
+                            <div className="message-content">
+                              <div className="message-bubble">
+                                {/* Only show text content if it's not an image-only message */}
+                                {(typeof message.content === 'string' && message.content) && <p>{message.content}</p>}
                                 
-                                // If we have an image URL
-                                if (imageUrl && imageUrl.match(/\.(jpeg|jpg|gif|png)$/i)) {
-                                  return (
-                                    <div className="message-attachment">
-                                      <img 
-                                        src={imageUrl} 
-                                        alt="Shared content" 
-                                        className="message-image"
-                                        onClick={() => window.open(imageUrl, '_blank')}
-                                      />
-                                    </div>
-                                  );
-                                }
-                                // If we have a non-image file URL
-                                else if (imageUrl) {
-                                  return (
-                                    <div className="message-attachment">
-                                      <div className="message-file">
-                                        <AttachFileIcon />
-                                        <a 
-                                          href={imageUrl} 
-                                          target="_blank" 
-                                          rel="noopener noreferrer"
-                                          className="file-link"
-                                        >
-                                          Download File
-                                        </a>
+                                {/* Handle image attachments */}
+                                {(() => {
+                                  // Extract the image URL from various possible locations
+                                  const imageUrl = message.fileUrl || 
+                                                  message.file || 
+                                                  (typeof message.content === 'object' && message.content.fileUrl) ||
+                                                  (typeof message.content === 'object' && message.content.file);
+                                  
+                                  // If we have an image URL
+                                  if (imageUrl && imageUrl.match(/\.(jpeg|jpg|gif|png)$/i)) {
+                                    return (
+                                      <div className="message-attachment">
+                                        <img 
+                                          src={imageUrl} 
+                                          alt="Shared content" 
+                                          className="message-image"
+                                          onClick={() => window.open(imageUrl, '_blank')}
+                                        />
                                       </div>
-                                    </div>
-                                  );
-                                }
-                                return null;
-                              })()}
-                              <div className="message-meta">
-                                <span className="message-time">
-                                  {formatMessageTime(message.createdAt)}
-                                </span>
-                                {getMessageStatus(message)}
+                                    );
+                                  }
+                                  // If we have a non-image file URL
+                                  else if (imageUrl) {
+                                    return (
+                                      <div className="message-attachment">
+                                        <div className="message-file">
+                                          <AttachFileIcon />
+                                          <a 
+                                            href={imageUrl} 
+                                            target="_blank" 
+                                            rel="noopener noreferrer"
+                                            className="file-link"
+                                          >
+                                            Download File
+                                          </a>
+                                        </div>
+                                      </div>
+                                    );
+                                  }
+                                  return null;
+                                })()}
+                                
+                                <div className="message-meta">
+                                  <span className="message-time">
+                                    {formatMessageTime(message.createdAt)}
+                                  </span>
+                                  {isOwn && (
+                                    message.read ? (
+                                      <DoneAll style={{ fontSize: 14, color: '#4caf50' }} />
+                                    ) : (
+                                      <Check style={{ fontSize: 14 }} />
+                                    )
+                                  )}
+                                </div>
                               </div>
                             </div>
                           </div>
-                        </div>
+                        </React.Fragment>
                       );
                     })}
                     <div ref={messagesEndRef} />
@@ -668,6 +806,85 @@ const Messages = ({ isOpen, onClose }) => {
                 )}
               </div>
 
+              {/* Poll Creator */}
+              {showPollCreator && (
+                <div className="poll-creator">
+                  <div className="poll-creator-header">
+                    <h3>Create a Poll</h3>
+                    <button className="close-btn" onClick={() => setShowPollCreator(false)}>
+                      <CloseIcon />
+                    </button>
+                  </div>
+                  <div className="poll-creator-content">
+                    <div className="form-group">
+                      <label>Question</label>
+                      <input 
+                        type="text" 
+                        placeholder="Ask a question..." 
+                        value={pollQuestion}
+                        onChange={(e) => setPollQuestion(e.target.value)}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Options</label>
+                      {pollOptions.map((option, index) => (
+                        <div key={index} className="option-input">
+                          <input 
+                            type="text" 
+                            placeholder={`Option ${index + 1}`}
+                            value={option}
+                            onChange={(e) => {
+                              const newOptions = [...pollOptions];
+                              newOptions[index] = e.target.value;
+                              setPollOptions(newOptions);
+                            }}
+                          />
+                          {index > 1 && (
+                            <button 
+                              className="remove-option" 
+                              onClick={() => {
+                                const newOptions = [...pollOptions];
+                                newOptions.splice(index, 1);
+                                setPollOptions(newOptions);
+                              }}
+                            >
+                              <CloseIcon style={{ fontSize: 16 }} />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                      {pollOptions.length < 6 && (
+                        <button 
+                          className="add-option"
+                          onClick={() => setPollOptions([...pollOptions, ''])}
+                        >
+                          <Add /> Add Option
+                        </button>
+                      )}
+                    </div>
+                    <div className="poll-actions">
+                      <button 
+                        className="cancel-btn" 
+                        onClick={() => setShowPollCreator(false)}
+                      >
+                        Cancel
+                      </button>
+                      <button 
+                        className="create-btn"
+                        disabled={!pollQuestion.trim() || pollOptions.filter(opt => opt.trim()).length < 2}
+                        onClick={() => {
+                          // TODO: Implement poll creation
+                          toast.success('Poll creation coming soon!');
+                          setShowPollCreator(false);
+                        }}
+                      >
+                        Create Poll
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
               {/* Message Input */}
               <div className="message-input-container">
                 

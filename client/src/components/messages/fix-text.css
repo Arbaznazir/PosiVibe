@@ -1,0 +1,8 @@
+.message-bubble p,
+.message-bubble span {
+  display: inline !important;
+  white-space: normal !important;
+  word-break: normal !important;
+  word-spacing: normal !important;
+  letter-spacing: normal !important;
+}
