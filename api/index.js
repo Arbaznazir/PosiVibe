@@ -513,6 +513,6 @@ console.log(`🔌 Attempting to bind to PORT=${PORT} (from env: ${process.env.PO
 
 // Listen on the port without specifying host to let the system decide
 server.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`🚀 Wooooowwwww! Server running on port ${PORT}`);
   console.log(`📱 Local: http://localhost:${PORT}`);
 });
