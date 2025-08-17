@@ -29,7 +29,8 @@ import {
   markOffline,
 } from "./utils/timeLimitMiddleware.js";
 import { uploadToCloudinary } from "./utils/uploadToCloudinary.js";
-import connectDB, { mongoose } from "./connect.js";
+import connectDB from "./config/database.js";
+import mongoose from "mongoose";
 import { canMessage } from "./controllers/message.js";
 import Message from "./models/Message.js";
 import { initializeEnvironment } from "./utils/fixEnv.js";
@@ -40,6 +41,12 @@ initializeEnvironment();
 
 // Ensure MongoDB connection is established
 console.log("🔄 Initializing MongoDB connection...");
+
+// Connect to MongoDB but don't crash if it fails
+connectDB().catch(err => {
+  console.error("❌ Failed to establish MongoDB connection:", err.message);
+  console.warn("⚠️ Application will start with limited functionality");
+});
 
 // ⚠️ TEMPORARY DEBUGGING: Using fully permissive CORS
 // This allows all origins for testing purposes only
@@ -574,13 +581,28 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/verification", verificationRoutes);
 
+// Root health check route - will work even if API routes aren't mounted correctly
+app.get("/", (req, res) => {
+  res.json({ 
+    status: "ok",
+    message: "PosiVibe API is running",
+    time: new Date().toISOString()
+  });
+});
+
 // Debug route to verify backend is alive
 app.get("/api/debug", (req, res) => {
   res.json({ 
     message: "Backend is alive 🚀",
     time: new Date().toISOString(),
-    env: process.env.NODE_ENV
+    env: process.env.NODE_ENV,
+    mongodb: mongoose.connection.readyState === 1 ? "connected" : "disconnected"
   });
+});
+
+// Simple ping endpoint
+app.get("/api/ping", (req, res) => {
+  res.send("pong");
 });
 
 // Handle 404

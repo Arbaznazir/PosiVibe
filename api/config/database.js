@@ -6,10 +6,20 @@ dotenv.config();
 const connectDB = async () => {
   try {
     console.log("🔄 Connecting to MongoDB Atlas...");
+    
+    // Check if MONGODB_URI is defined
+    if (!process.env.MONGODB_URI) {
+      console.error("❌ MONGODB_URI environment variable is not defined");
+      console.warn("⚠️ Starting app without MongoDB connection. Some features will be limited.");
+      return null;
+    }
 
     const conn = await mongoose.connect(process.env.MONGODB_URI, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
+      serverSelectionTimeoutMS: 10000, // 10 seconds timeout for server selection
+      socketTimeoutMS: 45000, // 45 seconds timeout for socket operations
+      connectTimeoutMS: 30000, // 30 seconds timeout for initial connection
     });
 
     console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
@@ -18,7 +28,9 @@ const connectDB = async () => {
     return conn;
   } catch (error) {
     console.error("❌ MongoDB connection error:", error.message);
-    process.exit(1);
+    console.warn("⚠️ Starting app without MongoDB connection. Some features will be limited.");
+    // Don't exit the process, allow the app to start without DB
+    return null;
   }
 };
 
